@@ -1,5 +1,7 @@
 import copy
+import math
 import random
+from threading import Lock
 from concurrent.futures import *
 
 import numpy as np
@@ -22,6 +24,16 @@ class AI(object):
         self.candidate_list = []
         self.next_state = {}
 
+        precedence0 = [(0, 1), (0, 6), (1, 0), (1, 1), (1, 6), (1, 7), (6, 0), (6, 1), (6, 6), (6, 7), (7, 1), (7, 6)]
+        precedence1 = [(1, 2), (1, 3), (1, 4), (1, 5), (2, 1), (3, 1), (4, 1), (5, 1), (2, 6), (3, 6), (4, 6), (5, 6),
+                       (6, 2), (6, 3), (6, 4), (6, 5)]
+        precedence2 = [(0, 2), (0, 3), (0, 4), (0, 5), (2, 0), (3, 0), (4, 0), (5, 0), (2, 7), (3, 7), (4, 7), (5, 7),
+                       (7, 2), (7, 3), (7, 4), (7, 5)]
+        precedence3 = [(2, 2), (2, 3), (2, 4), (2, 5), (3, 2), (3, 5), (4, 2), (4, 5), (5, 2), (5, 3), (5, 4), (5, 5)]
+        precedence4 = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        self.precedence = (precedence0, precedence1, precedence2, precedence3, precedence4)
+        self.cache = {}
+
     def go(self, chessboard):
         self.candidate_list.clear()
         self.next_state.clear()
@@ -30,11 +42,53 @@ class AI(object):
         self.candidate_list = list(self.next_state.keys())
         if len(self.candidate_list) == 0:
             return self.candidate_list
-        choice = random.choice(self.candidate_list)
-        self.candidate_list.append(choice)
+        except_corner = [candidate for candidate in self.candidate_list if candidate not in self.precedence[4]]
+        if len(except_corner) == 0:
+            pass
+        else:
+            pass
         return self.candidate_list
 
-    def judge(self, x: int, y: int) -> bool:
+    def alpha_beta(self, chessboard, color, alpha, beta, depth, no_move=False):
+        cache = self.load_cache(chessboard, color, alpha, beta, depth)
+        if cache:
+            return cache
+        saved_alpha, saved_beta = alpha, beta
+        best_value = -math.inf
+        best_pos = random.choice(self.candidate_list)
+        state = self.get_state(chessboard, color)
+        for pos, sub_board in state.items():
+            if depth == 0:
+                value = -self.evaluate(sub_board, -color)
+            else:
+                value = -self.alpha_beta(sub_board, -color, -beta, -alpha, depth - 1)[0]
+            if value >= beta:
+                return value, pos
+            if value > best_value:
+                best_pos = pos
+                best_value = value
+                if value > alpha:
+                    alpha = value
+        if len(state) == 0:
+            if no_move:
+                self.calculate_score(chessboard, color)
+            else:
+                best_value = -self.alpha_beta(chessboard, -color, -beta, -alpha, depth, True)[0]
+        self.save_cache(chessboard, color, saved_alpha, saved_beta, depth, best_value, best_pos)
+        return best_value, best_pos
+
+    def evaluate(self, chessboard, color):
+        return 0
+
+    def save_cache(self, chessboard, color, alpha, beta, depth, value, pos):
+        key = self.get_key(alpha, beta, chessboard, color, depth)
+        self.cache[key] = (value, pos)
+
+    def load_cache(self, chessboard, color, alpha, beta, depth):
+        key = self.get_key(alpha, beta, chessboard, color, depth)
+        return self.cache[key]
+
+    def judge(self, x, y):
         return 0 <= x < self.chessboard_size and 0 <= y < self.chessboard_size
 
     def get_state(self, chessboard, color):
@@ -82,3 +136,19 @@ class AI(object):
                     new_chessboard[idx[0]][idx[1]] = color
                     next_state[idx] = new_chessboard
         return next_state
+
+    @staticmethod
+    def get_key(alpha, beta, chessboard, color, depth):
+        board_map = copy.deepcopy(chessboard)
+        board_map[board_map == color] = 1
+        board_map[board_map == -color] = -1
+        key = tuple([board_map, alpha, beta, depth])
+        return key
+
+    @staticmethod
+    def calculate_score(chessboard, color):
+        black_num = np.where(chessboard == COLOR_BLACK)
+        black_num = len(black_num[0])
+        white_num = np.where(chessboard == COLOR_WHITE)
+        white_num = len(white_num[0])
+        return (white_num - black_num) * color * 20000
