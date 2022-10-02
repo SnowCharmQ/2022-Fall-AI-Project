@@ -18,4 +18,3 @@ while True:
     board = ai2.next_state[piece2]
     print(board)
     break
-

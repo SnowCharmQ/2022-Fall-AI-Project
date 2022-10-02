@@ -26,7 +26,8 @@ class AI(object):
         self.candidate_list.clear()
         self.next_state.clear()
         self.chessboard = chessboard
-        self.get_state()
+        self.next_state = self.get_state(self.chessboard, self.color)
+        self.candidate_list = list(self.next_state.keys())
         if len(self.candidate_list) == 0:
             return self.candidate_list
         choice = random.choice(self.candidate_list)
@@ -36,7 +37,7 @@ class AI(object):
     def judge(self, x: int, y: int) -> bool:
         return 0 <= x < self.chessboard_size and 0 <= y < self.chessboard_size
 
-    def get_state(self):
+    def get_state(self, chessboard, color):
 
         def get_valid_pos(x, y, dx, dy):
             pos_set = []
@@ -44,14 +45,14 @@ class AI(object):
             while True:
                 x += dx
                 y += dy
-                if not self.judge(x, y) or self.chessboard[x][y] == COLOR_NONE:
+                if not self.judge(x, y) or chessboard[x][y] == COLOR_NONE:
                     break
-                elif self.chessboard[x][y] == self.color and not including:
+                elif chessboard[x][y] == color and not including:
                     break
-                elif self.chessboard[x][y] == -self.color:
+                elif chessboard[x][y] == -color:
                     pos_set.append((x, y))
                     including = True
-                elif self.chessboard[x][y] == self.color and including:
+                elif chessboard[x][y] == color and including:
                     return pos_set
             return None
 
@@ -64,9 +65,10 @@ class AI(object):
                     pos_set += subset
             return (x, y), pos_set
 
-        indexes = np.where(self.chessboard == COLOR_NONE)
+        next_state = {}
+        indexes = np.where(chessboard == COLOR_NONE)
         indexes = tuple(zip(indexes[0], indexes[1]))
-        with ThreadPoolExecutor(max_workers=self.chessboard_size ** 2) as t:
+        with ThreadPoolExecutor(max_workers=len(chessboard) ** 2) as t:
             obj_list = []
             for idx in indexes:
                 obj = t.submit(test_all_directions, idx[0], idx[1])
@@ -74,9 +76,9 @@ class AI(object):
             for obj in as_completed(obj_list):
                 idx, reversed_color_set = obj.result()
                 if len(reversed_color_set) > 0:
-                    new_chessboard = copy.deepcopy(self.chessboard)
+                    new_chessboard = copy.deepcopy(chessboard)
                     for pos in reversed_color_set:
-                        new_chessboard[pos[0]][pos[1]] = self.color
-                    new_chessboard[idx[0]][idx[1]] = self.color
-                    self.next_state[idx] = new_chessboard
-                    self.candidate_list.append(idx)
+                        new_chessboard[pos[0]][pos[1]] = color
+                    new_chessboard[idx[0]][idx[1]] = color
+                    next_state[idx] = new_chessboard
+        return next_state
