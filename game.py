@@ -12,9 +12,6 @@ while True:
     l1 = ai1.go(board)
     piece1 = l1[-1]
     board = ai1.next_state[piece1]
-    print(board)
     l2 = ai2.go(board)
     piece2 = l2[-1]
     board = ai2.next_state[piece2]
-    print(board)
-    break
