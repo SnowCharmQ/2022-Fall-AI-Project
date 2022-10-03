@@ -20,6 +20,15 @@ precedence2 = [(0, 2), (0, 3), (0, 4), (0, 5), (2, 0), (3, 0), (4, 0), (5, 0), (
 precedence3 = [(2, 2), (2, 3), (2, 4), (2, 5), (3, 2), (3, 5), (4, 2), (4, 5), (5, 2), (5, 3), (5, 4), (5, 5)]
 precedence4 = [(0, 0), (0, 7), (7, 0), (7, 7)]
 
+weighted_graph = [[90, -60, 10, 10, 10, 10, -60, 90],
+                  [-60, -80, 5, 5, 5, 5, -80, -60],
+                  [10, 5, 1, 1, 1, 1, 5, 10],
+                  [10, 5, 1, 1, 1, 1, 5, 10],
+                  [10, 5, 1, 1, 1, 1, 5, 10],
+                  [10, 5, 1, 1, 1, 1, 5, 10],
+                  [-60, -80, 5, 5, 5, 5, -80, -60],
+                  [90, -60, 10, 10, 10, 10, -60, 90]]
+
 
 def tuple_to_int(t: tuple):
     if t in precedence0:
@@ -48,28 +57,34 @@ class AI(object):
         self.chessboard_size = chessboard_size
         self.color = color
         self.time_out = time_out
-
-        self.chessboard = None
         self.candidate_list = []
         self.next_state = {}
-
         self.precedence = (precedence0, precedence1, precedence2, precedence3, precedence4)
         self.cache = {}
-        self.pool = ThreadPoolExecutor(max_workers=self.chessboard_size ** 2)
+        self.count = 0
 
     def go(self, chessboard):
+        self.count += 1
         self.candidate_list.clear()
         self.next_state.clear()
-        self.chessboard = chessboard
-        self.next_state = self.get_state(self.chessboard, self.color)
+        self.next_state = self.get_state(chessboard, self.color)
         self.candidate_list = list(self.next_state.keys())
-        if len(self.candidate_list) == 0:
+        length = len(self.candidate_list)
+        if length == 0:
             return self.candidate_list
-        except_corner = [candidate for candidate in self.candidate_list if candidate not in self.precedence[4]]
-        if len(except_corner) == 0:
-            pass
+        for choice in self.candidate_list:
+            if choice not in self.precedence[4]:
+                self.candidate_list.append(choice)
+                break
+        if length != 0 and len(self.candidate_list) == length:
+            self.candidate_list.append(random.choice(self.candidate_list))
+        if self.color == COLOR_BLACK:
+            depth = 3
         else:
-            pass
+            depth = 3
+        val, pos = self.alpha_beta(chessboard, self.color, -10000, -10000, depth)
+        self.candidate_list.pop()
+        self.candidate_list.append(pos)
         return self.candidate_list
 
     def alpha_beta(self, chessboard, color, alpha, beta, depth, no_move=False):
@@ -103,7 +118,66 @@ class AI(object):
         return best_value, best_pos
 
     def evaluate(self, chessboard, color):
-        return 0
+
+        def is_frontier(board, x, y):
+            for dx, dy in [(dx, dy) for dx in range(-1, 2) for dy in range(-1, 2) if dx != 0 or dy != 0]:
+                if self.judge(x + dx, y + dy) and board[x + dx][y + dy] != 0:
+                    return True
+            return False
+
+        def judge_stable(board, current_color, x, y, z):
+            direction_x = [-1, 1, 0, 0, -1, 1, 1, -1]
+            direction_y = [0, 0, -1, 1, -1, 1, -1, 1]
+            bound_x = x + direction_x[z]
+            bound_y = y + direction_y[z]
+            while self.judge(bound_x, bound_y) and board[bound_x][bound_y] == current_color:
+                bound_x += direction_x[z]
+                bound_y += direction_y[z]
+            if not self.judge(bound_x, bound_y) or \
+                    (self.judge(bound_x, bound_y) and board[bound_x][bound_y] == COLOR_NONE):
+                return True
+            return False
+
+        def calculate(board, current_color, x, y):
+            frontier = 0
+            stability = 0
+            if is_frontier(board, x, y):
+                frontier += 1
+            for z in [0, 2, 4, 6]:
+                flag1 = judge_stable(board, current_color, x, y, z)
+                flag2 = judge_stable(board, current_color, x, y, z + 1)
+                if flag1 and flag2:
+                    stability += 1
+            return current_color, frontier, stability
+
+        weight = 0
+        my_frontier = 0
+        op_frontier = 0
+        my_stability = 0
+        op_stability = 0
+        state = self.get_state(chessboard, color)
+        my_corner_choice = [c for c in self.precedence[4] if chessboard[c[0]][c[1]] != color]
+        my_corner_choice = len(my_corner_choice)
+        my_mobility = len(state) - my_corner_choice
+        for i in range(self.chessboard_size):
+            for j in range(self.chessboard_size):
+                item = chessboard[i][j]
+                weight += item * weighted_graph[i][j]
+                result = calculate(chessboard, item, i, j)
+                if result[0] == color:
+                    my_frontier += result[1]
+                    my_stability += result[2]
+                else:
+                    op_frontier += result[1]
+                    op_stability += result[2]
+        if color == COLOR_WHITE:
+            weight = -weight
+        if len(state) != 0:
+            return weight - 16 * (my_stability - op_stability) + 6 * (
+                        my_frontier - op_frontier) - 8 * my_mobility - 100 * my_corner_choice / len(state)
+        else:
+            return weight * 2 - 16 * (my_stability - op_stability) + 6 * (
+                    my_frontier - op_frontier) - 8 * my_mobility
 
     def save_cache(self, chessboard, color, alpha, beta, value, pos):
         key = self.get_key(alpha, beta, chessboard, color)
@@ -147,7 +221,7 @@ class AI(object):
         next_state = {}
         indexes = np.where(chessboard == COLOR_NONE)
         indexes = tuple(zip(indexes[0], indexes[1]))
-        with self.pool as t:
+        with ThreadPoolExecutor(max_workers=self.chessboard_size ** 2) as t:
             obj_list = []
             for idx in indexes:
                 obj = t.submit(test_all_directions, idx[0], idx[1])
@@ -177,4 +251,4 @@ class AI(object):
         black_num = len(black_num[0])
         white_num = np.where(chessboard == COLOR_WHITE)
         white_num = len(white_num[0])
-        return (white_num - black_num) * color * 20000
+        return (white_num - black_num) * color * 10000
