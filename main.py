@@ -54,8 +54,8 @@ class AI(object):
         self.next_state = {}
 
         self.precedence = (precedence0, precedence1, precedence2, precedence3, precedence4)
-        self.precedence_map = None
         self.cache = {}
+        self.pool = ThreadPoolExecutor(max_workers=self.chessboard_size ** 2)
 
     def go(self, chessboard):
         self.candidate_list.clear()
@@ -147,7 +147,7 @@ class AI(object):
         next_state = {}
         indexes = np.where(chessboard == COLOR_NONE)
         indexes = tuple(zip(indexes[0], indexes[1]))
-        with ThreadPoolExecutor(max_workers=len(chessboard) ** 2) as t:
+        with self.pool as t:
             obj_list = []
             for idx in indexes:
                 obj = t.submit(test_all_directions, idx[0], idx[1])
