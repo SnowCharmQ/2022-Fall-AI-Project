@@ -1,5 +1,3 @@
-import numpy as np
-
 from main import *
 
 ai1 = AI(8, COLOR_BLACK, 5)

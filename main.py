@@ -1,16 +1,45 @@
 import copy
 import math
 import random
-from threading import Lock
+from functools import cmp_to_key
 from concurrent.futures import *
 
 import numpy as np
+
+random.seed(0)
 
 COLOR_BLACK = -1
 COLOR_WHITE = 1
 COLOR_NONE = 0
 
-random.seed(0)
+precedence0 = [(0, 1), (0, 6), (1, 0), (1, 1), (1, 6), (1, 7), (6, 0), (6, 1), (6, 6), (6, 7), (7, 1), (7, 6)]
+precedence1 = [(1, 2), (1, 3), (1, 4), (1, 5), (2, 1), (3, 1), (4, 1), (5, 1), (2, 6), (3, 6), (4, 6), (5, 6),
+               (6, 2), (6, 3), (6, 4), (6, 5)]
+precedence2 = [(0, 2), (0, 3), (0, 4), (0, 5), (2, 0), (3, 0), (4, 0), (5, 0), (2, 7), (3, 7), (4, 7), (5, 7),
+               (7, 2), (7, 3), (7, 4), (7, 5)]
+precedence3 = [(2, 2), (2, 3), (2, 4), (2, 5), (3, 2), (3, 5), (4, 2), (4, 5), (5, 2), (5, 3), (5, 4), (5, 5)]
+precedence4 = [(0, 0), (0, 7), (7, 0), (7, 7)]
+
+
+def tuple_to_int(t: tuple):
+    if t in precedence0:
+        return 0
+    elif t in precedence1:
+        return 1
+    elif t in precedence2:
+        return 2
+    elif t in precedence3:
+        return 3
+    elif t in precedence4:
+        return 4
+    else:
+        return -1
+
+
+def cmp(t1: tuple, t2: tuple):
+    num1 = tuple_to_int(t1)
+    num2 = tuple_to_int(t2)
+    return num1 - num2
 
 
 class AI(object):
@@ -24,14 +53,8 @@ class AI(object):
         self.candidate_list = []
         self.next_state = {}
 
-        precedence0 = [(0, 1), (0, 6), (1, 0), (1, 1), (1, 6), (1, 7), (6, 0), (6, 1), (6, 6), (6, 7), (7, 1), (7, 6)]
-        precedence1 = [(1, 2), (1, 3), (1, 4), (1, 5), (2, 1), (3, 1), (4, 1), (5, 1), (2, 6), (3, 6), (4, 6), (5, 6),
-                       (6, 2), (6, 3), (6, 4), (6, 5)]
-        precedence2 = [(0, 2), (0, 3), (0, 4), (0, 5), (2, 0), (3, 0), (4, 0), (5, 0), (2, 7), (3, 7), (4, 7), (5, 7),
-                       (7, 2), (7, 3), (7, 4), (7, 5)]
-        precedence3 = [(2, 2), (2, 3), (2, 4), (2, 5), (3, 2), (3, 5), (4, 2), (4, 5), (5, 2), (5, 3), (5, 4), (5, 5)]
-        precedence4 = [(0, 0), (0, 7), (7, 0), (7, 7)]
         self.precedence = (precedence0, precedence1, precedence2, precedence3, precedence4)
+        self.precedence_map = None
         self.cache = {}
 
     def go(self, chessboard):
@@ -50,14 +73,16 @@ class AI(object):
         return self.candidate_list
 
     def alpha_beta(self, chessboard, color, alpha, beta, depth, no_move=False):
-        cache = self.load_cache(chessboard, color, alpha, beta, depth)
+        cache = self.load_cache(chessboard, color, alpha, beta)
         if cache:
             return cache
         saved_alpha, saved_beta = alpha, beta
         best_value = -math.inf
         best_pos = random.choice(self.candidate_list)
         state = self.get_state(chessboard, color)
-        for pos, sub_board in state.items():
+        sorted_state = sorted(state, key=cmp_to_key(cmp))
+        for pos in sorted_state:
+            sub_board = state[pos]
             if depth == 0:
                 value = -self.evaluate(sub_board, -color)
             else:
@@ -74,19 +99,19 @@ class AI(object):
                 self.calculate_score(chessboard, color)
             else:
                 best_value = -self.alpha_beta(chessboard, -color, -beta, -alpha, depth, True)[0]
-        self.save_cache(chessboard, color, saved_alpha, saved_beta, depth, best_value, best_pos)
+        self.save_cache(chessboard, color, saved_alpha, saved_beta, best_value, best_pos)
         return best_value, best_pos
 
     def evaluate(self, chessboard, color):
         return 0
 
-    def save_cache(self, chessboard, color, alpha, beta, depth, value, pos):
-        key = self.get_key(alpha, beta, chessboard, color, depth)
+    def save_cache(self, chessboard, color, alpha, beta, value, pos):
+        key = self.get_key(alpha, beta, chessboard, color)
         self.cache[key] = (value, pos)
 
-    def load_cache(self, chessboard, color, alpha, beta, depth):
-        key = self.get_key(alpha, beta, chessboard, color, depth)
-        return self.cache[key]
+    def load_cache(self, chessboard, color, alpha, beta):
+        key = self.get_key(alpha, beta, chessboard, color)
+        return self.cache.get(key)
 
     def judge(self, x, y):
         return 0 <= x < self.chessboard_size and 0 <= y < self.chessboard_size
@@ -138,11 +163,12 @@ class AI(object):
         return next_state
 
     @staticmethod
-    def get_key(alpha, beta, chessboard, color, depth):
+    def get_key(alpha, beta, chessboard, color):
         board_map = copy.deepcopy(chessboard)
         board_map[board_map == color] = 1
         board_map[board_map == -color] = -1
-        key = tuple([board_map, alpha, beta, depth])
+        board = tuple([tuple(e) for e in board_map])
+        key = tuple([board, alpha, beta])
         return key
 
     @staticmethod
