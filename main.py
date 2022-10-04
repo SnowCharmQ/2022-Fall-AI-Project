@@ -2,7 +2,6 @@ import copy
 import math
 import random
 from functools import cmp_to_key
-from concurrent.futures import *
 
 import numpy as np
 
@@ -72,18 +71,32 @@ class AI(object):
         if len(self.candidate_list) == 0:
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
-        if self.beginning and self.count <= 6:
-            val, pos = self.alpha_beta(chessboard, self.color, 3)
-        elif self.count <= 12:
-            val, pos = self.alpha_beta(chessboard, self.color, 5)
-        elif 12 < self.count < 30:
-            val, pos = self.alpha_beta(chessboard, self.color, 4)
-        elif self.count <= 30:
-            val, pos = self.alpha_beta(chessboard, self.color, 2)
-        elif self.count <= 56:
-            val, pos = self.alpha_beta(chessboard, self.color, 3)
+        if self.color == COLOR_BLACK:
+            if self.beginning and self.count <= 6:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 12:
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
+            elif 12 < self.count < 30:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 30:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 52:
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
+            else:
+                val, pos = self.alpha_beta(chessboard, self.color, 7)
         else:
-            val, pos = self.alpha_beta(chessboard, self.color, 6)
+            if self.beginning and self.count <= 6:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 12:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif 12 < self.count < 30:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 30:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 50:
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
+            else:
+                val, pos = self.alpha_beta(chessboard, self.color, 8)
         print(self.color, val)
         if pos is None:
             return self.candidate_list
@@ -215,9 +228,11 @@ class AI(object):
         elif self.count <= 40:
             return state_score * 0.9 + mobi_score * 1.6 + (op_frontier - my_frontier) * 1.4 + (
                     op_stability - my_stability) * 1.6
-        else:
+        elif self.count <= 54:
             return state_score * 1.8 + mobi_score * 1.5 + (op_frontier - my_frontier) * 1.2 + (
                     op_stability - my_stability) * 1.3
+        else:
+            return len(tuple(zip(np.where(chessboard == -color)))) - len(tuple(zip(np.where(chessboard == color))))
 
     def save_cache(self, chessboard, color, value, pos):
         key = self.get_key(chessboard, color)

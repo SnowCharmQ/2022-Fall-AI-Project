@@ -13,8 +13,11 @@ board[3][4] = COLOR_BLACK
 board[4][3] = COLOR_BLACK
 
 s = time.time()
+i = 1
 
 while True:
+    print(i)
+    i += 1
     l1 = ai1.go(board)
     if len(l1) != 0:
         piece1 = l1[-1]
@@ -24,10 +27,9 @@ while True:
         piece2 = l2[-1]
         board = ai2.next_state[piece2]
 
-    if time.time() - s > 60:
+    if time.time() - s > 200:
         break
 
 print(board)
 print(len(tuple(zip(np.where(board == 1)[0]))))
 print(len(tuple(zip(np.where(board == -1)[0]))))
-
