@@ -12,9 +12,6 @@ COLOR_BLACK = -1
 COLOR_WHITE = 1
 COLOR_NONE = 0
 
-ALPHA = -10000
-BETA = -10000
-
 precedence0 = [(0, 1), (0, 6), (1, 0), (1, 1), (1, 6), (1, 7), (6, 0), (6, 1), (6, 6), (6, 7), (7, 1), (7, 6)]
 precedence1 = [(1, 2), (1, 3), (1, 4), (1, 5), (2, 1), (3, 1), (4, 1), (5, 1), (2, 6), (3, 6), (4, 6), (5, 6),
                (6, 2), (6, 3), (6, 4), (6, 5)]
@@ -75,48 +72,81 @@ class AI(object):
         if len(self.candidate_list) == 0:
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
-        if self.beginning:
-            val, pos = self.alpha_beta(chessboard, self.color, ALPHA, BETA, 3)
+        if self.beginning and self.count <= 6:
+            val, pos = self.alpha_beta(chessboard, self.color, 3)
+        elif self.count <= 12:
+            val, pos = self.alpha_beta(chessboard, self.color, 5)
+        elif 12 < self.count < 30:
+            val, pos = self.alpha_beta(chessboard, self.color, 4)
         elif self.count <= 30:
-            val, pos = self.alpha_beta(chessboard, self.color, ALPHA, BETA, 2)
-        elif self.count <= 60:
-            val, pos = self.alpha_beta(chessboard, self.color, ALPHA, BETA, 2)
+            val, pos = self.alpha_beta(chessboard, self.color, 2)
+        elif self.count <= 56:
+            val, pos = self.alpha_beta(chessboard, self.color, 3)
         else:
-            val, pos = self.alpha_beta(chessboard, self.color, ALPHA, BETA, 4)
-        print(val)
+            val, pos = self.alpha_beta(chessboard, self.color, 6)
+        print(self.color, val)
+        if pos is None:
+            return self.candidate_list
         self.candidate_list.pop()
         self.candidate_list.append(pos)
         return self.candidate_list
 
-    def alpha_beta(self, chessboard, color, alpha, beta, depth, no_move=False):
-        cache = self.load_cache(chessboard, color, alpha, beta)
+    def alpha_beta(self, chessboard, color, depth):
+        cache = self.load_cache(chessboard, color)
         if cache:
             return cache
-        saved_alpha, saved_beta = alpha, beta
-        best_value = -math.inf
-        best_pos = random.choice(self.candidate_list)
-        state = self.get_state(chessboard, color)
-        sorted_state = sorted(state, key=cmp_to_key(cmp))
-        for pos in sorted_state:
-            sub_board = state[pos]
-            if depth == 0:
-                value = -self.evaluate(sub_board, -color)
-            else:
-                value = -self.alpha_beta(sub_board, -color, -beta, -alpha, depth - 1)[0]
-            if value >= beta:
-                return value, pos
-            if value > best_value:
-                best_pos = pos
-                best_value = value
-                if value > alpha:
-                    alpha = value
-        if len(state) == 0:
-            if no_move:
-                self.calculate_score(chessboard, color)
-            else:
-                best_value = -self.alpha_beta(chessboard, -color, -beta, -alpha, depth, True)[0]
-        self.save_cache(chessboard, color, saved_alpha, saved_beta, best_value, best_pos)
-        return best_value, best_pos
+
+        def maxvalue(board, alpha, beta, current_color, depth_val, no_move=False):
+            state = self.get_state(board, current_color)
+            # TODO：思考一下是当前颜色还是自己的颜色
+            if depth_val == 0 and len(state) == 0:
+                return self.calculate_score(board, self.color), None
+            elif depth_val == 0:
+                return self.evaluate(board, self.color), None
+            elif len(state) == 0:
+                if no_move:
+                    return self.calculate_score(board, self.color), None
+                else:
+                    return minvalue(board, alpha, beta, -current_color, depth_val - 1, True)
+            best_value, best_move = -math.inf, random.choice(self.candidate_list)
+            sorted_state = sorted(state, key=cmp_to_key(cmp))
+            for pos in sorted_state:
+                sub_board = state.get(pos)
+                value, move = minvalue(sub_board, alpha, beta, -current_color, depth_val - 1)
+                if value > best_value:
+                    best_value = value
+                    best_move = pos
+                    alpha = max(alpha, best_value)
+                if alpha >= beta:
+                    return best_value, best_move
+            return best_value, best_move
+
+        def minvalue(board, alpha, beta, current_color, depth_val, no_move=False):
+            state = self.get_state(board, current_color)
+            # TODO：思考一下是当前颜色还是自己的颜色
+            if depth_val == 0 and len(state) == 0:
+                return self.calculate_score(board, self.color), None
+            elif depth_val == 0:
+                return self.evaluate(board, self.color), None
+            elif len(state) == 0:
+                if no_move:
+                    return self.calculate_score(board, self.color), None
+                else:
+                    return maxvalue(board, alpha, beta, -current_color, depth_val - 1, True)
+            best_value, best_move = math.inf, None
+            sorted_state = sorted(state, key=cmp_to_key(cmp))
+            for pos in sorted_state:
+                sub_board = state.get(pos)
+                value, move = maxvalue(sub_board, alpha, beta, -current_color, depth_val - 1)
+                if value < best_value:
+                    best_value = value
+                    best_move = pos
+                    beta = min(beta, best_value)
+                if alpha >= beta:
+                    return best_value, best_move
+            return best_value, best_move
+
+        return maxvalue(board=chessboard, alpha=-math.inf, beta=math.inf, current_color=color, depth_val=depth)
 
     def evaluate(self, chessboard, color):
 
@@ -178,20 +208,23 @@ class AI(object):
             if op_corner_cnt == len(next_state):
                 mobi_score += 12
             else:
-                mobi_score += (2 * (len(next_state) - op_corner_cnt) + 3.5 * op_corner_cnt)
+                mobi_score += (2 * (len(next_state) - op_corner_cnt) + 4 * op_corner_cnt)
         if self.beginning:
             return state_score * 1.1 + mobi_score * 1.4 + (op_frontier - my_frontier) * 1.2 + (
-                        op_stability - my_stability) * 1.5
-        else:
+                    op_stability - my_stability) * 1.5
+        elif self.count <= 40:
             return state_score * 0.9 + mobi_score * 1.6 + (op_frontier - my_frontier) * 1.4 + (
-                        op_stability - my_stability) * 1.6
+                    op_stability - my_stability) * 1.6
+        else:
+            return state_score * 1.8 + mobi_score * 1.5 + (op_frontier - my_frontier) * 1.2 + (
+                    op_stability - my_stability) * 1.3
 
-    def save_cache(self, chessboard, color, alpha, beta, value, pos):
-        key = self.get_key(alpha, beta, chessboard, color)
+    def save_cache(self, chessboard, color, value, pos):
+        key = self.get_key(chessboard, color)
         self.cache[key] = (value, pos)
 
-    def load_cache(self, chessboard, color, alpha, beta):
-        key = self.get_key(alpha, beta, chessboard, color)
+    def load_cache(self, chessboard, color):
+        key = self.get_key(chessboard, color)
         return self.cache.get(key)
 
     def judge(self, x, y):
@@ -228,19 +261,14 @@ class AI(object):
         next_state = {}
         indexes = np.where(chessboard == COLOR_NONE)
         indexes = tuple(zip(indexes[0], indexes[1]))
-        with ThreadPoolExecutor(max_workers=2 * self.chessboard_size ** 2) as t:
-            obj_list = []
-            for idx in indexes:
-                obj = t.submit(test_all_directions, idx[0], idx[1])
-                obj_list.append(obj)
-            for obj in as_completed(obj_list):
-                idx, reversed_color_set = obj.result()
-                if len(reversed_color_set) > 0:
-                    new_chessboard = copy.deepcopy(chessboard)
-                    for pos in reversed_color_set:
-                        new_chessboard[pos[0]][pos[1]] = color
-                    new_chessboard[idx[0]][idx[1]] = color
-                    next_state[idx] = new_chessboard
+        for idx in indexes:
+            idx, reversed_color_set = test_all_directions(idx[0], idx[1])
+            if len(reversed_color_set) > 0:
+                new_chessboard = copy.deepcopy(chessboard)
+                for pos in reversed_color_set:
+                    new_chessboard[pos[0]][pos[1]] = color
+                new_chessboard[idx[0]][idx[1]] = color
+                next_state[idx] = new_chessboard
         return next_state
 
     def map_to_state(self, t: tuple):
@@ -266,12 +294,12 @@ class AI(object):
             return 0
 
     @staticmethod
-    def get_key(alpha, beta, chessboard, color):
+    def get_key(chessboard, color):
         board_map = copy.deepcopy(chessboard)
         board_map[board_map == color] = 1
         board_map[board_map == -color] = -1
         board = tuple([tuple(e) for e in board_map])
-        key = tuple([board, alpha, beta])
+        key = tuple([board])
         return key
 
     @staticmethod
@@ -280,7 +308,7 @@ class AI(object):
         black_num = len(black_num[0])
         white_num = np.where(chessboard == COLOR_WHITE)
         white_num = len(white_num[0])
-        return (white_num - black_num) * color * 10000
+        return (white_num - black_num) * (-color) * 10000
 
     @staticmethod
     def judge_beginning(chessboard):

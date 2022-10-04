@@ -1,3 +1,7 @@
+import time
+
+import numpy as np
+
 from main import *
 
 ai1 = AI(8, COLOR_BLACK, 5)
@@ -8,10 +12,22 @@ board[4][4] = COLOR_WHITE
 board[3][4] = COLOR_BLACK
 board[4][3] = COLOR_BLACK
 
+s = time.time()
+
 while True:
     l1 = ai1.go(board)
-    piece1 = l1[-1]
-    board = ai1.next_state[piece1]
+    if len(l1) != 0:
+        piece1 = l1[-1]
+        board = ai1.next_state[piece1]
     l2 = ai2.go(board)
-    piece2 = l2[-1]
-    board = ai2.next_state[piece2]
+    if len(l2) != 0:
+        piece2 = l2[-1]
+        board = ai2.next_state[piece2]
+
+    if time.time() - s > 60:
+        break
+
+print(board)
+print(len(tuple(zip(np.where(board == 1)[0]))))
+print(len(tuple(zip(np.where(board == -1)[0]))))
+
