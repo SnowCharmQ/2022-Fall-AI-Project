@@ -1,4 +1,3 @@
-import copy
 import math
 import random
 from functools import cmp_to_key
@@ -18,12 +17,6 @@ precedence2 = [(0, 2), (0, 3), (0, 4), (0, 5), (2, 0), (3, 0), (4, 0), (5, 0), (
                (7, 2), (7, 3), (7, 4), (7, 5)]
 precedence3 = [(2, 2), (2, 3), (2, 4), (2, 5), (3, 2), (3, 5), (4, 2), (4, 5), (5, 2), (5, 3), (5, 4), (5, 5)]
 precedence4 = [(0, 0), (0, 7), (7, 0), (7, 7)]
-
-inner_squares = [(3, 3), (4, 4), (4, 3), (3, 4)]
-x_squares = [(1, 1), (1, 6), (6, 1), (6, 6)]
-c_squares = [(0, 1), (0, 6), (1, 0), (1, 7), (6, 0), (6, 7), (7, 1), (7, 6)]
-corner_squares = [(0, 0), (0, 7), (7, 0), (7, 7)]
-side_squares = [(x, y) for x in range(8) for y in range(8) if (x == 0 or x == 7 or y == 0 or y == 7)]
 
 
 def tuple_to_int(t: tuple):
@@ -60,6 +53,14 @@ class AI(object):
         self.count = 0
         self.beginning = True
 
+        self.inner_squares = [(3, 3), (4, 4), (4, 3), (3, 4)]
+        self.x_squares = [(1, 1), (1, 6), (6, 1), (6, 6)]
+        self.c_squares = [(0, 1), (0, 6), (1, 0), (1, 7), (6, 0), (6, 7), (7, 1), (7, 6)]
+        self.corner_squares = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        self.side_squares = [(x, y) for x in range(8) for y in range(8) if (x == 0 or x == 7 or y == 0 or y == 7)]
+
+        self.where = np.where
+
     def go(self, chessboard):
         if self.beginning:
             self.beginning = self.judge_beginning(chessboard)
@@ -78,12 +79,8 @@ class AI(object):
                 val, pos = self.alpha_beta(chessboard, self.color, 4)
             elif 12 < self.count < 30:
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
-            elif self.count <= 30:
-                val, pos = self.alpha_beta(chessboard, self.color, 3)
-            elif self.count <= 52:
-                val, pos = self.alpha_beta(chessboard, self.color, 4)
             else:
-                val, pos = self.alpha_beta(chessboard, self.color, 7)
+                val, pos = self.alpha_beta(chessboard, self.color, 6)
         else:
             if self.beginning and self.count <= 6:
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
@@ -91,12 +88,8 @@ class AI(object):
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
             elif 12 < self.count < 30:
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
-            elif self.count <= 30:
-                val, pos = self.alpha_beta(chessboard, self.color, 3)
-            elif self.count <= 50:
-                val, pos = self.alpha_beta(chessboard, self.color, 4)
             else:
-                val, pos = self.alpha_beta(chessboard, self.color, 8)
+                val, pos = self.alpha_beta(chessboard, self.color, 6)
         print(self.color, val)
         if pos is None:
             return self.candidate_list
@@ -111,7 +104,6 @@ class AI(object):
 
         def maxvalue(board, alpha, beta, current_color, depth_val, no_move=False):
             state = self.get_state(board, current_color)
-            # TODO：思考一下是当前颜色还是自己的颜色
             if depth_val == 0 and len(state) == 0:
                 return self.calculate_score(board, self.color), None
             elif depth_val == 0:
@@ -123,8 +115,9 @@ class AI(object):
                     return minvalue(board, alpha, beta, -current_color, depth_val - 1, True)
             best_value, best_move = -math.inf, random.choice(self.candidate_list)
             sorted_state = sorted(state, key=cmp_to_key(cmp))
+            get = state.get
             for pos in sorted_state:
-                sub_board = state.get(pos)
+                sub_board = get(pos)
                 value, move = minvalue(sub_board, alpha, beta, -current_color, depth_val - 1)
                 if value > best_value:
                     best_value = value
@@ -136,7 +129,6 @@ class AI(object):
 
         def minvalue(board, alpha, beta, current_color, depth_val, no_move=False):
             state = self.get_state(board, current_color)
-            # TODO：思考一下是当前颜色还是自己的颜色
             if depth_val == 0 and len(state) == 0:
                 return self.calculate_score(board, self.color), None
             elif depth_val == 0:
@@ -148,8 +140,9 @@ class AI(object):
                     return maxvalue(board, alpha, beta, -current_color, depth_val - 1, True)
             best_value, best_move = math.inf, None
             sorted_state = sorted(state, key=cmp_to_key(cmp))
+            get = state.get
             for pos in sorted_state:
-                sub_board = state.get(pos)
+                sub_board = get(pos)
                 value, move = maxvalue(sub_board, alpha, beta, -current_color, depth_val - 1)
                 if value < best_value:
                     best_value = value
@@ -184,15 +177,14 @@ class AI(object):
 
         def calculate(board, current_color, x, y):
             frontier = 0
-            stability = 0
             if is_frontier(board, x, y):
                 frontier += 1
-            for z in [0, 2, 4, 6]:
-                flag1 = judge_stable(board, current_color, x, y, z)
-                flag2 = judge_stable(board, current_color, x, y, z + 1)
-                if flag1 and flag2:
-                    stability += 1
-            return frontier, stability
+            stable_list = list(filter(
+                lambda num: True if judge_stable(board, current_color, x, y, num) and judge_stable(board, current_color,
+                                                                                                   x, y,
+                                                                                                   num + 1) else False,
+                [0, 2, 4, 6]))
+            return frontier, len(stable_list)
 
         my_frontier = 0
         my_stability = 0
@@ -216,23 +208,23 @@ class AI(object):
         if len(next_state) > 0:
             op_corner_cnt = 0
             for pos in next_state.keys():
-                if pos in corner_squares:
+                if pos in self.corner_squares:
                     op_corner_cnt += 1
             if op_corner_cnt == len(next_state):
                 mobi_score += 12
             else:
-                mobi_score += (2 * (len(next_state) - op_corner_cnt) + 4 * op_corner_cnt)
+                mobi_score += (2 * (len(next_state) - op_corner_cnt) + 5 * op_corner_cnt)
         if self.beginning:
             return state_score * 1.1 + mobi_score * 1.4 + (op_frontier - my_frontier) * 1.2 + (
                     op_stability - my_stability) * 1.5
-        elif self.count <= 40:
+        elif self.count <= 17:
             return state_score * 0.9 + mobi_score * 1.6 + (op_frontier - my_frontier) * 1.4 + (
                     op_stability - my_stability) * 1.6
-        elif self.count <= 54:
+        elif self.count <= 24:
             return state_score * 1.8 + mobi_score * 1.5 + (op_frontier - my_frontier) * 1.2 + (
                     op_stability - my_stability) * 1.3
         else:
-            return len(tuple(zip(np.where(chessboard == -color)))) - len(tuple(zip(np.where(chessboard == color))))
+            return len(tuple(zip(self.where(chessboard == -color)))) - len(tuple(zip(self.where(chessboard == color))))
 
     def save_cache(self, chessboard, color, value, pos):
         key = self.get_key(chessboard, color)
@@ -250,7 +242,8 @@ class AI(object):
         def get_valid_pos(x, y, dx, dy):
             pos_set = []
             including = False
-            while True:
+            append = pos_set.append
+            while 1:
                 x += dx
                 y += dy
                 if not self.judge(x, y) or chessboard[x][y] == COLOR_NONE:
@@ -258,7 +251,7 @@ class AI(object):
                 elif chessboard[x][y] == color and not including:
                     break
                 elif chessboard[x][y] == -color:
-                    pos_set.append((x, y))
+                    append((x, y))
                     including = True
                 elif chessboard[x][y] == color and including:
                     return pos_set
@@ -274,12 +267,12 @@ class AI(object):
             return (x, y), pos_set
 
         next_state = {}
-        indexes = np.where(chessboard == COLOR_NONE)
+        indexes = self.where(chessboard == COLOR_NONE)
         indexes = tuple(zip(indexes[0], indexes[1]))
         for idx in indexes:
             idx, reversed_color_set = test_all_directions(idx[0], idx[1])
             if len(reversed_color_set) > 0:
-                new_chessboard = copy.deepcopy(chessboard)
+                new_chessboard = chessboard.copy()
                 for pos in reversed_color_set:
                     new_chessboard[pos[0]][pos[1]] = color
                 new_chessboard[idx[0]][idx[1]] = color
@@ -287,52 +280,49 @@ class AI(object):
         return next_state
 
     def map_to_state(self, t: tuple):
-        if t in inner_squares + self.precedence[3]:
-            if self.count < 30:
-                return -2
-            else:
-                return -1
-        elif t in corner_squares:
+        def func1(x):
+            return -2 if x < 30 else -1
+
+        def func2(x):
+            return 1 if x < 30 else 0
+
+        if t in self.inner_squares + self.precedence[3]:
+            return func1(self.count)
+        elif t in self.corner_squares:
             return -7
-        elif t in x_squares:
+        elif t in self.x_squares:
             return 4
-        elif t in c_squares:
+        elif t in self.c_squares:
             return -3
         elif t in self.precedence[2]:
-            if self.count < 30:
-                return 1
-            else:
-                return 0
+            return func2(self.count)
         elif t in self.precedence[1]:
             return 2
         else:
             return 0
 
+    def calculate_score(self, chessboard, color):
+        black_num = self.where(chessboard == COLOR_BLACK)
+        black_num = len(black_num[0])
+        white_num = self.where(chessboard == COLOR_WHITE)
+        white_num = len(white_num[0])
+        return (white_num - black_num) * (-color) * 10000
+
+    def judge_beginning(self, chessboard):
+        for pos in self.x_squares + self.side_squares:
+            if chessboard[pos[0]][pos[1]] != 0:
+                return False
+        return True
+
+    def count_chess(self, chessboard):
+        idx = self.where(chessboard != 0)
+        return len(tuple(zip(idx[0], idx[1])))
+
     @staticmethod
     def get_key(chessboard, color):
-        board_map = copy.deepcopy(chessboard)
+        board_map = chessboard.copy()
         board_map[board_map == color] = 1
         board_map[board_map == -color] = -1
         board = tuple([tuple(e) for e in board_map])
         key = tuple([board])
         return key
-
-    @staticmethod
-    def calculate_score(chessboard, color):
-        black_num = np.where(chessboard == COLOR_BLACK)
-        black_num = len(black_num[0])
-        white_num = np.where(chessboard == COLOR_WHITE)
-        white_num = len(white_num[0])
-        return (white_num - black_num) * (-color) * 10000
-
-    @staticmethod
-    def judge_beginning(chessboard):
-        for pos in x_squares + side_squares:
-            if chessboard[pos[0]][pos[1]] != 0:
-                return False
-        return True
-
-    @staticmethod
-    def count_chess(chessboard):
-        idx = np.where(chessboard != 0)
-        return len(tuple(zip(idx[0], idx[1])))
