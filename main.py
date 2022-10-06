@@ -1,5 +1,6 @@
 import math
 import random
+import time
 from functools import cmp_to_key
 
 import numpy as np
@@ -62,6 +63,7 @@ class AI(object):
         self.where = np.where
 
     def go(self, chessboard):
+        s = time.time()
         if self.beginning:
             self.beginning = self.judge_beginning(chessboard)
         self.candidate_list.clear()
@@ -78,19 +80,32 @@ class AI(object):
             elif self.count <= 12:
                 val, pos = self.alpha_beta(chessboard, self.color, 4)
             elif 12 < self.count < 30:
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
+            elif self.count <= 30:
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 52:
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
             else:
-                val, pos = self.alpha_beta(chessboard, self.color, 6)
+                val, pos = self.alpha_beta(chessboard, self.color, 7)
         else:
             if self.beginning and self.count <= 6:
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
             elif self.count <= 12:
-                val, pos = self.alpha_beta(chessboard, self.color, 3)
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
             elif 12 < self.count < 30:
                 val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 30:
+                val, pos = self.alpha_beta(chessboard, self.color, 3)
+            elif self.count <= 50:
+                val, pos = self.alpha_beta(chessboard, self.color, 4)
             else:
-                val, pos = self.alpha_beta(chessboard, self.color, 6)
+                val, pos = self.alpha_beta(chessboard, self.color, 8)
+        e = time.time()
         print(self.color, val)
+        if e - s > 4:
+            print(self.count)
+            print("Timeout!")
+            return self.candidate_list
         if pos is None:
             return self.candidate_list
         self.candidate_list.pop()
