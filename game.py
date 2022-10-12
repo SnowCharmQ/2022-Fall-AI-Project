@@ -28,6 +28,7 @@ def show(chessboard):
             else:
                 print(NONE_PIECE, end=" ")
         print()
+    print()
 
 
 def judge(chessboard):
@@ -57,7 +58,6 @@ while True:
             break
         flag = True
     show(board)
-    time.sleep(1)
 
     if judge(board):
         break
@@ -73,7 +73,6 @@ while True:
             break
         flag = True
     show(board)
-    time.sleep(1)
 
     if judge(board):
         break
