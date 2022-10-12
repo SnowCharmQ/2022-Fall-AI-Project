@@ -1,6 +1,6 @@
 import math
 import random
-import time
+from numba import jit
 from functools import cmp_to_key
 
 import numpy as np
@@ -51,41 +51,63 @@ class AI(object):
         self.next_state = {}
         self.precedence = (precedence0, precedence1, precedence2, precedence3, precedence4)
         self.cache = {}
-        self.count = 0
         self.beginning = True
-
         self.inner_squares = [(3, 3), (4, 4), (4, 3), (3, 4)]
         self.x_squares = [(1, 1), (1, 6), (6, 1), (6, 6)]
         self.c_squares = [(0, 1), (0, 6), (1, 0), (1, 7), (6, 0), (6, 7), (7, 1), (7, 6)]
         self.corner_squares = [(0, 0), (0, 7), (7, 0), (7, 7)]
         self.side_squares = [(x, y) for x in range(8) for y in range(8) if (x == 0 or x == 7 or y == 0 or y == 7)]
-
         self.where = np.where
+        self.sum = np.sum
         self.inf = math.inf
+        self.weighted_map0 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
+                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [-70, 5, -2, -2, -2, -2, 5, -70]])
+        self.weighted_map1 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
+                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [-70, 5, -2, -2, -2, -2, 5, -70]])
+        self.weighted_map2 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
+                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [-2, -5, -1, -1, -1, -1, -5, -2],
+                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [-70, 5, -2, -2, -2, -2, 5, -70]])
 
     def go(self, chessboard):
-        s = time.time()
         if self.beginning:
             self.beginning = self.judge_beginning(chessboard)
         self.candidate_list.clear()
         self.next_state.clear()
         self.next_state = self.get_state(chessboard, self.color)
         self.candidate_list = list(self.next_state.keys())
-        self.count = self.count_chess(chessboard)
         if len(self.candidate_list) == 0:
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
-        # TODO
-        e = time.time()
-        # print(self.color, val)
-        if e - s > 4:
-            print(self.count)
-            print("Timeout!")
+        count = self.count_chess(chessboard)
+        if count < 12:
+            pos = self.alpha_beta(chessboard, self.color)
+        elif self.beginning and count < 20:
+            pos = self.alpha_beta(chessboard, self.color, d=5)
+        elif count < 50:
+            pos = self.alpha_beta(chessboard, self.color)
+        else:
+            pos = self.alpha_beta(chessboard, self.color, d=7)
+        if pos is None:
             return self.candidate_list
-        # if pos is None:
-        #     return self.candidate_list
-        # self.candidate_list.pop()
-        # self.candidate_list.append(pos)
+        self.candidate_list.pop()
+        self.candidate_list.append(pos)
         return self.candidate_list
 
     def alpha_beta(self, chessboard, color, d=4):
@@ -96,11 +118,11 @@ class AI(object):
         def max_value(board, current_color, alpha, beta, depth):
             state = self.get_state(board, current_color)
             if len(state) == 0:
-                return self.calculate_score(board, current_color)
-            if depth > d:
-                return self.evaluate(board, current_color)
+                return self.calculate_score(board, self.color)
+            if depth >= d:
+                return self.evaluate(board)
             val = -self.inf
-            sorted_state = sorted(state, key=cmp_to_key(cmp))  # TODO
+            sorted_state = sorted(state, key=cmp_to_key(cmp))
             get = state.get
             for pos in sorted_state:
                 sub_board = get(pos)
@@ -113,11 +135,11 @@ class AI(object):
         def min_value(board, current_color, alpha, beta, depth):
             state = self.get_state(board, current_color)
             if len(state) == 0:
-                return self.calculate_score(board, current_color)
-            if depth > d:
-                return self.evaluate(board, current_color)
+                return self.calculate_score(board, self.color)
+            if depth >= d:
+                return self.evaluate(board)
             val = self.inf
-            sorted_state = sorted(state, key=cmp_to_key(cmp))  # TODO
+            sorted_state = sorted(state, key=cmp_to_key(cmp), reverse=True)
             get = state.get
             for pos in sorted_state:
                 sub_board = get(pos)
@@ -131,7 +153,7 @@ class AI(object):
         temp = self.inf
         best_action = None
         next_state = self.get_state(chessboard, color)
-        next_sorted_state = sorted(next_state, key=cmp_to_key(cmp))  # TODO
+        next_sorted_state = sorted(next_state, key=cmp_to_key(cmp), reverse=True)
         get_board = next_state.get
         for move in next_sorted_state:
             next_board = get_board(move)
@@ -139,11 +161,23 @@ class AI(object):
             if v > best_score:
                 best_score = v
                 best_action = move
-        self.save_cache(chessboard=chessboard, color=color, pos=best_action)
+        if best_action is not None:
+            self.save_cache(chessboard=chessboard, color=color, pos=best_action)
         return best_action
 
-    def evaluate(self, chessboard, color):
-        pass  # TODO
+    def evaluate(self, chessboard):
+        def weighting(weighted_map):
+            return np.sum(chessboard * weighted_map * self.color)
+
+        cnt = self.count_chess(chessboard)
+        if self.beginning and cnt < 20:
+            return weighting(weighted_map=self.weighted_map0)
+        elif cnt < 40:
+            return weighting(weighted_map=self.weighted_map1)
+        elif cnt < 55:
+            return weighting(weighted_map=self.weighted_map2)
+        else:
+            return self.calculate_score(chessboard, self.color)
 
     def save_cache(self, chessboard, color, pos):
         key = self.get_key(chessboard, color)
@@ -198,22 +232,11 @@ class AI(object):
                 next_state[idx] = new_chessboard
         return next_state
 
-    def calculate_score(self, chessboard, color):
-        black_num = self.where(chessboard == COLOR_BLACK)
-        black_num = len(black_num[0])
-        white_num = self.where(chessboard == COLOR_WHITE)
-        white_num = len(white_num[0])
-        return (white_num - black_num) * (-color) * 10000
-
     def judge_beginning(self, chessboard):
         for pos in self.x_squares + self.side_squares:
             if chessboard[pos[0]][pos[1]] != 0:
                 return False
         return True
-
-    def count_chess(self, chessboard):
-        idx = self.where(chessboard != 0)
-        return len(tuple(zip(idx[0], idx[1])))
 
     @staticmethod
     def get_key(chessboard, color):
@@ -221,5 +244,17 @@ class AI(object):
         board_map[board_map == color] = 1
         board_map[board_map == -color] = -1
         board = tuple([tuple(e) for e in board_map])
-        key = tuple([board])
+        key = tuple([board, color])
         return key
+
+    @staticmethod
+    @jit(nopython=True)
+    def calculate_score(chessboard, color):
+        black_num = np.sum(chessboard == COLOR_BLACK)
+        white_num = np.sum(chessboard == COLOR_WHITE)
+        return (white_num - black_num) * (-color) * 10000
+
+    @staticmethod
+    @jit(nopython=True)
+    def count_chess(chessboard):
+        return np.sum(chessboard != 0)
