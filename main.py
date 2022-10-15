@@ -1,5 +1,5 @@
-import math
 import random
+from math import inf
 from numba import jit
 from functools import cmp_to_key
 
@@ -59,31 +59,31 @@ class AI(object):
         self.side_squares = [(x, y) for x in range(8) for y in range(8) if (x == 0 or x == 7 or y == 0 or y == 7)]
         self.where = np.where
         self.sum = np.sum
-        self.inf = math.inf
-        self.weighted_map0 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
-                                       [5, 15, -5, -5, -5, -5, 15, 5],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [5, 15, -5, -5, -5, -5, 15, 5],
-                                       [-70, 5, -2, -2, -2, -2, 5, -70]])
-        self.weighted_map1 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
-                                       [5, 15, -5, -5, -5, -5, 15, 5],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [5, 15, -5, -5, -5, -5, 15, 5],
-                                       [-70, 5, -2, -2, -2, -2, 5, -70]])
-        self.weighted_map2 = np.array([[-100, 5, -2, -2, -2, -2, 5, -100],
-                                       [5, 15, -5, -5, -5, -5, 15, 5],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [5, 15, -5, -5, -5, -5, 15, 5],
-                                       [-100, 5, -2, -2, -2, -2, 5, -100]])
+        self.inf = inf
+        self.weighted_map0 = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
+                                      [25, 45, -1, -1, -1, -1, 45, 25],
+                                      [-10, -1, -3, -2, -2, -3, -1, -10],
+                                      [-5, -1, -2, -1, -1, -2, -1, -5],
+                                      [-5, -1, -2, -1, -1, -2, -1, -5],
+                                      [-10, -1, -3, -2, -2, -3, -1, -10],
+                                      [25, 45, -1, -1, -1, -1, 45, 25],
+                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
+        self.weighted_map1 = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
+                                      [25, 45, -1, -1, -1, -1, 45, 25],
+                                      [-10, -1, -3, -2, -2, -3, -1, -10],
+                                      [-5, -1, -2, -1, -1, -2, -1, -5],
+                                      [-5, -1, -2, -1, -1, -2, -1, -5],
+                                      [-10, -1, -3, -2, -2, -3, -1, -10],
+                                      [25, 45, -1, -1, -1, -1, 45, 25],
+                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
+        self.weighted_map2 = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
+                                      [25, 45, -1, -1, -1, -1, 45, 25],
+                                      [-10, -1, -3, -2, -2, -3, -1, -10],
+                                      [-5, -1, -2, -1, -1, -2, -1, -5],
+                                      [-5, -1, -2, -1, -1, -2, -1, -5],
+                                      [-10, -1, -3, -2, -2, -3, -1, -10],
+                                      [25, 45, -1, -1, -1, -1, 45, 25],
+                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
 
     def go(self, chessboard):
         if self.beginning:
@@ -98,12 +98,12 @@ class AI(object):
         count = self.count_chess(chessboard)
         if count < 12:
             pos = self.alpha_beta(chessboard, self.color)
-        elif self.beginning and count < 20:
+        elif self.beginning and count < 18:
             pos = self.alpha_beta(chessboard, self.color, d=5)
-        elif count < 50:
+        elif count < 52:
             pos = self.alpha_beta(chessboard, self.color)
         else:
-            pos = self.alpha_beta(chessboard, self.color, d=9)
+            pos = self.alpha_beta(chessboard, self.color, d=8)
         if pos is None:
             return self.candidate_list
         self.candidate_list.pop()
@@ -196,10 +196,11 @@ class AI(object):
             pos_set = []
             including = False
             append = pos_set.append
+            judge = self.judge
             while 1:
                 x += dx
                 y += dy
-                if not self.judge(x, y) or chessboard[x][y] == COLOR_NONE:
+                if not judge(x, y) or chessboard[x][y] == COLOR_NONE:
                     break
                 elif chessboard[x][y] == color and not including:
                     break
