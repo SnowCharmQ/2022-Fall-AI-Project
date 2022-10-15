@@ -61,29 +61,29 @@ class AI(object):
         self.sum = np.sum
         self.inf = math.inf
         self.weighted_map0 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
-                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [5, 15, -5, -5, -5, -5, 15, 5],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [5, 15, -5, -5, -5, -5, 15, 5],
                                        [-70, 5, -2, -2, -2, -2, 5, -70]])
         self.weighted_map1 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
-                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [5, 15, -5, -5, -5, -5, 15, 5],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [5, 10, -5, -5, -5, -5, 10, 5],
+                                       [5, 15, -5, -5, -5, -5, 15, 5],
                                        [-70, 5, -2, -2, -2, -2, 5, -70]])
-        self.weighted_map2 = np.array([[-70, 5, -2, -2, -2, -2, 5, -70],
-                                       [5, 10, -5, -5, -5, -5, 10, 5],
+        self.weighted_map2 = np.array([[-100, 5, -2, -2, -2, -2, 5, -100],
+                                       [5, 15, -5, -5, -5, -5, 15, 5],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
                                        [-2, -5, -1, -1, -1, -1, -5, -2],
-                                       [5, 10, -5, -5, -5, -5, 10, 5],
-                                       [-70, 5, -2, -2, -2, -2, 5, -70]])
+                                       [5, 15, -5, -5, -5, -5, 15, 5],
+                                       [-100, 5, -2, -2, -2, -2, 5, -100]])
 
     def go(self, chessboard):
         if self.beginning:
@@ -103,7 +103,7 @@ class AI(object):
         elif count < 50:
             pos = self.alpha_beta(chessboard, self.color)
         else:
-            pos = self.alpha_beta(chessboard, self.color, d=7)
+            pos = self.alpha_beta(chessboard, self.color, d=9)
         if pos is None:
             return self.candidate_list
         self.candidate_list.pop()
@@ -252,7 +252,7 @@ class AI(object):
     def calculate_score(chessboard, color):
         black_num = np.sum(chessboard == COLOR_BLACK)
         white_num = np.sum(chessboard == COLOR_WHITE)
-        return (white_num - black_num) * (-color) * 10000
+        return (white_num - black_num) * (-color) * 15000
 
     @staticmethod
     @jit(nopython=True)
