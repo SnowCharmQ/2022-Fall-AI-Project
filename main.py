@@ -96,10 +96,10 @@ class AI(object):
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
         count = self.count_chess(chessboard)
-        if count < 12:
+        if count < 20:
             pos = self.alpha_beta(chessboard, self.color)
-        elif self.beginning and count < 18:
-            pos = self.alpha_beta(chessboard, self.color, d=5)
+        elif count < 28:
+            pos = self.alpha_beta(chessboard, self.color, d=3)
         elif count < 52:
             pos = self.alpha_beta(chessboard, self.color)
         else:
