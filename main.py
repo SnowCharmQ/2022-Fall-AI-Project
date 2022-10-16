@@ -1,3 +1,4 @@
+import time
 import random
 from math import inf
 from numba import jit
@@ -61,29 +62,29 @@ class AI(object):
         self.sum = np.sum
         self.inf = inf
         self.weighted_map0 = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
+                                       [25, 45, -1, -1, -1, -1, 45, 25],
+                                       [-10, -1, -3, -2, -2, -3, -1, -10],
+                                       [-5, -1, -2, -1, -1, -2, -1, -5],
+                                       [-5, -1, -2, -1, -1, -2, -1, -5],
+                                       [-10, -1, -3, -2, -2, -3, -1, -10],
+                                       [25, 45, -1, -1, -1, -1, 45, 25],
+                                       [-500, 25, -10, -5, -5, -10, 25, -500]])
         self.weighted_map1 = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
+                                       [25, 45, -1, -1, -1, -1, 45, 25],
+                                       [-10, -1, -3, -2, -2, -3, -1, -10],
+                                       [-5, -1, -2, -1, -1, -2, -1, -5],
+                                       [-5, -1, -2, -1, -1, -2, -1, -5],
+                                       [-10, -1, -3, -2, -2, -3, -1, -10],
+                                       [25, 45, -1, -1, -1, -1, 45, 25],
+                                       [-500, 25, -10, -5, -5, -10, 25, -500]])
         self.weighted_map2 = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
+                                       [25, 45, -1, -1, -1, -1, 45, 25],
+                                       [-10, -1, -3, -2, -2, -3, -1, -10],
+                                       [-5, -1, -2, -1, -1, -2, -1, -5],
+                                       [-5, -1, -2, -1, -1, -2, -1, -5],
+                                       [-10, -1, -3, -2, -2, -3, -1, -10],
+                                       [25, 45, -1, -1, -1, -1, 45, 25],
+                                       [-500, 25, -10, -5, -5, -10, 25, -500]])
 
     def go(self, chessboard):
         if self.beginning:
@@ -97,24 +98,40 @@ class AI(object):
         self.candidate_list.append(random.choice(self.candidate_list))
         count = self.count_chess(chessboard)
         if count < 20:
-            pos = self.alpha_beta(chessboard, self.color)
+            self.search(chessboard, self.color, d=3)
         elif count < 28:
-            pos = self.alpha_beta(chessboard, self.color, d=3)
+            self.search(chessboard, self.color, d=3)
         elif count < 52:
-            pos = self.alpha_beta(chessboard, self.color)
+            self.search(chessboard, self.color, d=3)
         else:
-            pos = self.alpha_beta(chessboard, self.color, d=8)
-        if pos is None:
-            return self.candidate_list
-        self.candidate_list.pop()
-        self.candidate_list.append(pos)
+            self.search(chessboard, self.color, d=8)
         return self.candidate_list
 
-    def alpha_beta(self, chessboard, color, d=4):
-        cache = self.load_cache(chessboard, color)
-        if cache:
-            return cache
+    def search(self, chessboard, color, d=3):
+        flag = 0
+        last = 4.88
+        time_used = 0
+        while 1:
+            s = time.time()
+            pos = self.alpha_beta(chessboard, color, d)
+            if pos is None:
+                return self.candidate_list
+            self.candidate_list.pop()
+            self.candidate_list.append(pos)
+            e = time.time()
+            if flag == 3:
+                break
+            usage = e - s
+            time_used += usage
+            if 2 * usage < last:
+                last -= usage
+                last -= 0.1
+                d += 1
+                flag += 1
+            else:
+                break
 
+    def alpha_beta(self, chessboard, color, d=4):
         def max_value(board, current_color, alpha, beta, depth):
             state = self.get_state(board, current_color)
             if len(state) == 0:
@@ -161,8 +178,6 @@ class AI(object):
             if v > best_score:
                 best_score = v
                 best_action = move
-        if best_action is not None:
-            self.save_cache(chessboard=chessboard, color=color, pos=best_action)
         return best_action
 
     def evaluate(self, chessboard):
@@ -178,14 +193,6 @@ class AI(object):
             return weighting(weighted_map=self.weighted_map2)
         else:
             return self.calculate_score(chessboard, self.color)
-
-    def save_cache(self, chessboard, color, pos):
-        key = self.get_key(chessboard, color)
-        self.cache[key] = pos
-
-    def load_cache(self, chessboard, color):
-        key = self.get_key(chessboard, color)
-        return self.cache.get(key)
 
     def judge(self, x, y):
         return 0 <= x < self.chessboard_size and 0 <= y < self.chessboard_size
@@ -249,7 +256,6 @@ class AI(object):
         return key
 
     @staticmethod
-    @jit(nopython=True)
     def calculate_score(chessboard, color):
         black_num = np.sum(chessboard == COLOR_BLACK)
         white_num = np.sum(chessboard == COLOR_WHITE)
