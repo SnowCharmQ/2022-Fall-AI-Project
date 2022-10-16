@@ -52,7 +52,6 @@ class AI(object):
         self.next_state = {}
         self.precedence = (precedence0, precedence1, precedence2, precedence3, precedence4)
         self.cache = {}
-        self.beginning = True
         self.inner_squares = [(3, 3), (4, 4), (4, 3), (3, 4)]
         self.x_squares = [(1, 1), (1, 6), (6, 1), (6, 6)]
         self.c_squares = [(0, 1), (0, 6), (1, 0), (1, 7), (6, 0), (6, 7), (7, 1), (7, 6)]
@@ -87,8 +86,6 @@ class AI(object):
                                        [-500, 25, -10, -5, -5, -10, 25, -500]])
 
     def go(self, chessboard):
-        if self.beginning:
-            self.beginning = self.judge_beginning(chessboard)
         self.candidate_list.clear()
         self.next_state.clear()
         self.next_state = self.get_state(chessboard, self.color)
@@ -97,20 +94,21 @@ class AI(object):
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
         count = self.count_chess(chessboard)
-        if count < 20:
-            self.search(chessboard, self.color, d=3)
-        elif count < 28:
-            self.search(chessboard, self.color, d=3)
-        elif count < 52:
+        if count < 48:
             self.search(chessboard, self.color, d=3)
         else:
-            self.search(chessboard, self.color, d=8)
+            self.search(chessboard, self.color, d=5)
         return self.candidate_list
 
     def search(self, chessboard, color, d=3):
         flag = 0
         last = 4.88
         time_used = 0
+        cnt = np.sum(chessboard != 0)
+        if cnt < 48:
+            limit = 3
+        else:
+            limit = 4
         while 1:
             s = time.time()
             pos = self.alpha_beta(chessboard, color, d)
@@ -119,7 +117,7 @@ class AI(object):
             self.candidate_list.pop()
             self.candidate_list.append(pos)
             e = time.time()
-            if flag == 3:
+            if flag == limit:
                 break
             usage = e - s
             time_used += usage
@@ -185,12 +183,18 @@ class AI(object):
             return np.sum(chessboard * weighted_map * self.color)
 
         cnt = self.count_chess(chessboard)
-        if self.beginning and cnt < 20:
+        my_num = np.sum(chessboard == self.color)
+        op_num = np.sum(chessboard == -self.color)
+        if my_num == 0:
+            return 50000
+        if op_num == 0:
+            return -50000
+        if cnt < 20:
             return weighting(weighted_map=self.weighted_map0)
         elif cnt < 40:
-            return weighting(weighted_map=self.weighted_map1)
-        elif cnt < 55:
-            return weighting(weighted_map=self.weighted_map2)
+            return (op_num - my_num) * 0.1 + weighting(weighted_map=self.weighted_map1) * 0.9
+        elif cnt < 54:
+            return (op_num - my_num) * 0.5 + weighting(weighted_map=self.weighted_map1) * 0.5
         else:
             return self.calculate_score(chessboard, self.color)
 
@@ -239,12 +243,6 @@ class AI(object):
                 new_chessboard[idx[0]][idx[1]] = color
                 next_state[idx] = new_chessboard
         return next_state
-
-    def judge_beginning(self, chessboard):
-        for pos in self.x_squares + self.side_squares:
-            if chessboard[pos[0]][pos[1]] != 0:
-                return False
-        return True
 
     @staticmethod
     def get_key(chessboard, color):
