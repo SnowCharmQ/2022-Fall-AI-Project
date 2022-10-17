@@ -1,4 +1,4 @@
-from main import *
+from ai import *
 
 board_s = """
 [[ 0  1  1  1  1  0  0  0]
