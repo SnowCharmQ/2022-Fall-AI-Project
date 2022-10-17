@@ -191,9 +191,11 @@ class AI(object):
         if cnt < 20:
             return weighting(weighted_map=self.weighted_map0)
         elif cnt < 36:
-            return (op_num - my_num) * self.data[30] + weighting(weighted_map=self.weighted_map1) * (1 - self.data[30])
+            return (op_num - my_num) * self.data[30] * self.data[32] + weighting(weighted_map=self.weighted_map1) * (
+                        1 - self.data[30])
         elif cnt < 50:
-            return (op_num - my_num) * self.data[31] + weighting(weighted_map=self.weighted_map1) * (1 - self.data[31])
+            return (op_num - my_num) * self.data[31] * self.data[33] + weighting(weighted_map=self.weighted_map1) * (
+                        1 - self.data[31])
         else:
             return self.calculate_score(chessboard, self.color)
 

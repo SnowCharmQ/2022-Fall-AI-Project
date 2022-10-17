@@ -109,10 +109,10 @@ def get_fitness(population: list):
 
 low = -500
 low = [low for _ in range(30)]
-low.extend([0, 0, 0, 0, 0])
+low.extend([0, 0, low])
 high = 100
 high = [high for _ in range(30)]
-high.extend([1, 1, 64, 64, 64])
+high.extend([1, 1, high])
 bound = (low, high)
 cr_p = 0.2
 mut_p = 0.2
@@ -124,7 +124,7 @@ pop_size = 16
 init_data = [-500, 25, -10, 45, -1, -5, -3, -2, -1, -1,
              -500, 25, -10, 45, -1, -5, -3, -2, -1, -1,
              -500, 25, -10, 45, -1, -5, -3, -2, -1, -1,
-             0.1, 0.5]
+             0.1, 0.5, 1, 1]
 init_gene = Gene(init_data)
 pop.append(init_gene)
 s = time.time()
