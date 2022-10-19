@@ -101,34 +101,35 @@ class AI(object):
         if count < 48:
             self.search(chessboard, self.color, d=2)
         else:
-            self.search(chessboard, self.color, d=4)
+            self.search(chessboard, self.color, d=2)
         return self.candidate_list
 
     def search(self, chessboard, color, d=2):
-        flag = 0
-        last = 4.88
-        time_used = 0
+        # flag = 0
+        # last = 4.88
+        # time_used = 0
         while 1:
-            s = time.time()
+            # s = time.time()
             pos = self.alpha_beta(chessboard, color, d)
             if pos is None:
-                return self.candidate_list
+                break
             self.candidate_list.pop()
             self.candidate_list.append(pos)
-            e = time.time()
-            if flag > 0:
-                break
-            usage = e - s
-            time_used += usage
-            if 2 * usage < last:
-                last -= usage
-                last -= 0.1
-                d += 1
-                flag += 1
-            else:
-                break
+            break
+            # e = time.time()
+            # if flag > 0:
+            #     break
+            # usage = e - s
+            # time_used += usage
+            # if 2 * usage < last:
+            #     last -= usage
+            #     last -= 0.1
+            #     d += 1
+            #     flag += 1
+            # else:
+            #     break
 
-    def alpha_beta(self, chessboard, color, d=4):
+    def alpha_beta(self, chessboard, color, d=2):
         def max_value(board, current_color, alpha, beta, depth):
             state = self.get_state(board, current_color)
             if len(state) == 0:

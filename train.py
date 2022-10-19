@@ -1,12 +1,9 @@
-import os
-import random
-import time
-
 from ai import *
 from idiot import *
 from concurrent.futures import *
 
-file_name = "result.txt"
+file_name1 = "result.txt"
+file_name2 = "best.txt"
 
 dim = 34
 low = -500
@@ -21,8 +18,8 @@ mut_p = 0.1
 ngen = 100
 
 population = []
-pop_size = 16
-next_size = 12
+pop_size = 22
+next_size = 16
 
 
 class Gene:
@@ -36,13 +33,12 @@ class Gene:
 
 
 def save_ai(pop, gen):
-    with open(file_name, mode='a', encoding='utf-8') as f:
-        best_info = "Best Fitness in Generation %f: %f ----- %s" % (gen, pop[0].fitness, pop[0].data)
-        f.write(best_info)
+    with open(file_name1, mode='a', encoding='utf-8') as f1, open(file_name2, mode='a', encoding='utf-8') as f2:
+        best_info = "Best Fitness in Generation %d: %f ----- %s\n" % (gen, pop[0].fitness, pop[0].data)
+        f2.write(best_info)
         for p in pop:
-            if p.fitness > 135 and p != pop[0]:
-                good_info = "Good Fitness in Generation %f: %f ----- %s" % (gen, p.fitness, p.data)
-                f.write(good_info)
+            good_info = "Fitness in Generation %d: %f ----- %s\n" % (gen, p.fitness, p.data)
+            f1.write(good_info)
 
 
 def select(pop):
@@ -58,6 +54,11 @@ def select(pop):
                 break
     chosen.sort(reverse=True)
     return chosen
+
+
+def refresh(pop):
+    for p in pop:
+        p.fitness = 0
 
 
 def cross_swap(offspring):
@@ -214,12 +215,14 @@ with ThreadPoolExecutor(max_workers=100) as t:
         result = obj.result()
         population.append(result)
 get_fitness(population)
+save_ai(population, 0)
 e = time.time()
 print("Time for Initialization:", (e - s))
 population.sort(reverse=True)
 
 for g in range(ngen):
     s = time.time()
+    refresh(population)
     select_pop = select(population)
     next_pop = []
     while len(select_pop) > 0:
