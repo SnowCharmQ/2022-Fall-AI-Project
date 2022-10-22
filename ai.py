@@ -113,11 +113,10 @@ class AI(object):
             pos = self.alpha_beta(chessboard, color, d)
             if pos is None:
                 break
-            self.candidate_list.pop()
             self.candidate_list.append(pos)
             break
             # e = time.time()
-            # if flag > 0:
+            # if flag > 2:
             #     break
             # usage = e - s
             # time_used += usage
@@ -129,7 +128,7 @@ class AI(object):
             # else:
             #     break
 
-    def alpha_beta(self, chessboard, color, d=2):
+    def alpha_beta(self, chessboard, color, d=1):
         def max_value(board, current_color, alpha, beta, depth):
             state = self.get_state(board, current_color)
             if len(state) == 0:

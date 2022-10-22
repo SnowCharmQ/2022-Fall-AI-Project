@@ -18,8 +18,8 @@ mut_p = 0.1
 ngen = 100
 
 population = []
-pop_size = 22
-next_size = 16
+pop_size = 18
+next_size = 12
 
 
 class Gene:
@@ -59,6 +59,7 @@ def select(pop):
 def refresh(pop):
     for p in pop:
         p.fitness = 0
+    return pop
 
 
 def cross_swap(offspring):
@@ -222,7 +223,6 @@ population.sort(reverse=True)
 
 for g in range(ngen):
     s = time.time()
-    refresh(population)
     select_pop = select(population)
     next_pop = []
     while len(select_pop) > 0:
@@ -233,7 +233,7 @@ for g in range(ngen):
             if random.random() < mut_p:
                 mutation(o)
         next_pop.extend(offspring)
-    with ThreadPoolExecutor(max_workers=10) as t:
+    with ThreadPoolExecutor(max_workers=100) as t:
         for _ in range(pop_size - next_size):
             obj = t.submit(get_valid_gene)
             obj_list.append(obj)
@@ -241,7 +241,8 @@ for g in range(ngen):
             result = obj.result()
             next_pop.append(result)
     population = next_pop
+    population = refresh(population)
     get_fitness(population)
+    save_ai(population, g + 1)
     e = time.time()
     print("Evaluate Time: %f in Generation %f" % ((e - s), g + 1))
-    save_ai(population, g + 1)
