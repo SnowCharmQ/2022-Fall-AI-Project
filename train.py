@@ -1,3 +1,5 @@
+import random
+
 from ai import *
 from idiot import *
 from concurrent.futures import *
@@ -15,7 +17,7 @@ high.extend([1, 1, high, 10])
 bound = (low, high)
 cr_p = 0.8
 mut_p = 0.1
-ngen = 100
+ngen = 500
 
 population = []
 pop_size = 18
@@ -30,6 +32,9 @@ class Gene:
 
     def __lt__(self, other):
         return self.fitness < other.fitness
+
+    def __str__(self):
+        return str(self.fitness)
 
 
 def save_ai(pop, gen):
@@ -79,13 +84,14 @@ def mutation(gene):
 
 
 def evaluate(g1, g2):
-    cnt = 0
-    ai_black = AI(8, COLOR_BLACK, 5, g1.data)
-    ai_white = AI(8, COLOR_WHITE, 5, g2.data)
-    cnt += battle(ai_black, ai_white)
-    ai_black = AI(8, COLOR_BLACK, 5, g2.data)
-    ai_white = AI(8, COLOR_WHITE, 5, g1.data)
-    cnt -= battle(ai_black, ai_white)
+    cnt = random.randint(-2, 2)
+    # cnt = 0
+    # ai_black = AI(8, COLOR_BLACK, 5, g1.data)
+    # ai_white = AI(8, COLOR_WHITE, 5, g2.data)
+    # cnt += battle(ai_black, ai_white)
+    # ai_black = AI(8, COLOR_BLACK, 5, g2.data)
+    # ai_white = AI(8, COLOR_WHITE, 5, g1.data)
+    # cnt -= battle(ai_black, ai_white)
     if cnt == 2:
         g1.fitness += 10
     elif cnt == 1:
@@ -109,15 +115,16 @@ def get_valid_gene():
         data.append(random.random())
         data.append(random.random())
         g = Gene(data)
-        cnt = 0
-        ai_black = AI(8, COLOR_BLACK, 5, g.data)
-        ai_white = Idiot(8, COLOR_WHITE, 5)
-        cnt += battle(ai_black, ai_white)
-        ai_black = Idiot(8, COLOR_BLACK, 5)
-        ai_white = AI(8, COLOR_WHITE, 5, g.data)
-        cnt -= battle(ai_black, ai_white)
-        if cnt == 2:
-            return g
+        return g
+        # cnt = 0
+        # ai_black = AI(8, COLOR_BLACK, 5, g.data)
+        # ai_white = Idiot(8, COLOR_WHITE, 5)
+        # cnt += battle(ai_black, ai_white)
+        # ai_black = Idiot(8, COLOR_BLACK, 5)
+        # ai_white = AI(8, COLOR_WHITE, 5, g.data)
+        # cnt -= battle(ai_black, ai_white)
+        # if cnt == 2:
+        #     return g
 
 
 def get_winner(chessboard):
@@ -215,6 +222,7 @@ with ThreadPoolExecutor(max_workers=100) as t:
     for obj in as_completed(obj_list):
         result = obj.result()
         population.append(result)
+print(len(population))
 get_fitness(population)
 save_ai(population, 0)
 e = time.time()
@@ -225,6 +233,7 @@ for g in range(ngen):
     s = time.time()
     select_pop = select(population)
     next_pop = []
+    print("select", len(select_pop))
     while len(select_pop) > 0:
         offspring = [select_pop.pop() for _ in range(2)]
         if random.random() < cr_p:
@@ -233,7 +242,9 @@ for g in range(ngen):
             if random.random() < mut_p:
                 mutation(o)
         next_pop.extend(offspring)
+    print("next", len(next_pop))
     with ThreadPoolExecutor(max_workers=100) as t:
+        obj_list = []
         for _ in range(pop_size - next_size):
             obj = t.submit(get_valid_gene)
             obj_list.append(obj)
@@ -242,7 +253,12 @@ for g in range(ngen):
             next_pop.append(result)
     population = next_pop
     population = refresh(population)
+    print("total", len(population))
+    for p in population:
+        print(p)
     get_fitness(population)
+    for p in population:
+        print(p)
     save_ai(population, g + 1)
     e = time.time()
     print("Evaluate Time: %f in Generation %f" % ((e - s), g + 1))
