@@ -158,12 +158,62 @@ class AI(object):
         return best_action
 
     def evaluate(self, chessboard):
+        def is_frontier(board, x, y):
+            for dx, dy in [(dx, dy) for dx in range(-1, 2) for dy in range(-1, 2) if dx != 0 or dy != 0]:
+                if self.judge(x + dx, y + dy) and board[x + dx][y + dy] != 0:
+                    return True
+            return False
+
+        def judge_stable(board, current_color, x, y, z):
+            direction_x = [-1, 1, 0, 0, -1, 1, 1, -1]
+            direction_y = [0, 0, -1, 1, -1, 1, -1, 1]
+            bound_x = x + direction_x[z]
+            bound_y = y + direction_y[z]
+            while self.judge(bound_x, bound_y) and board[bound_x][bound_y] == current_color:
+                bound_x += direction_x[z]
+                bound_y += direction_y[z]
+            if not self.judge(bound_x, bound_y) or \
+                    (self.judge(bound_x, bound_y) and board[bound_x][bound_y] == COLOR_NONE):
+                return True
+            return False
+
+        def calculate(board, current_color, x, y):
+            frontier = 0
+            stability = 0
+            if is_frontier(board, x, y):
+                frontier += 1
+            for z in [0, 2, 4, 6]:
+                flag1 = judge_stable(board, current_color, x, y, z)
+                flag2 = judge_stable(board, current_color, x, y, z + 1)
+                if flag1 and flag2:
+                    stability += 1
+            return frontier, stability
+
         def weighting(weighted_map):
             return np.sum(chessboard * weighted_map * self.color)
 
         cnt = self.count_chess(chessboard)
-        if cnt < 58:
+        my_frontier = 0
+        my_stability = 0
+        op_frontier = 0
+        op_stability = 0
+        for i in range(8):
+            for j in range(8):
+                if chessboard[i][j] == self.color:
+                    result = calculate(chessboard, self.color, i, j)
+                    my_frontier += result[0]
+                    my_stability += result[1]
+                elif chessboard[i][j] == -self.color:
+                    result = calculate(chessboard, -self.color, i, j)
+                    op_frontier += result[0]
+                    op_stability += result[1]
+        if cnt < 30:
             return weighting(weighted_map=self.weighted_map)
+        elif cnt < 45:
+            return weighting(weighted_map=self.weighted_map) + 6 * (my_frontier - op_frontier) + \
+                   7 * (op_stability - my_stability)
+        elif cnt < 58:
+            return weighting(weighted_map=self.weighted_map) + 11 * (op_stability - my_stability)
         else:
             return self.calculate_score(chessboard, self.color)
 
