@@ -9,7 +9,7 @@ COLOR_NONE = 0
 random.seed(0)
 
 
-class Idiot(object):
+class AI(object):
 
     def __init__(self, chessboard_size, color, time_out):
         self.chessboard_size = chessboard_size

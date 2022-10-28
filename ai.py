@@ -78,9 +78,7 @@ class AI(object):
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
         count = self.count_chess(chessboard)
-        if count < 10:
-            self.search(chessboard, self.color, d=3)
-        elif count < 52:
+        if count < 50:
             self.search(chessboard, self.color, d=2)
         else:
             self.search(chessboard, self.color, d=4)
@@ -211,9 +209,9 @@ class AI(object):
             return weighting(weighted_map=self.weighted_map)
         elif cnt < 45:
             return weighting(weighted_map=self.weighted_map) + 6 * (my_frontier - op_frontier) + \
-                   7 * (op_stability - my_stability)
+                   8 * (op_stability - my_stability)
         elif cnt < 58:
-            return weighting(weighted_map=self.weighted_map) + 11 * (op_stability - my_stability)
+            return weighting(weighted_map=self.weighted_map) + 16 * (op_stability - my_stability)
         else:
             return self.calculate_score(chessboard, self.color)
 
