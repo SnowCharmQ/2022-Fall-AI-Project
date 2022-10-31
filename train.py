@@ -1,3 +1,4 @@
+import time
 from ai import *
 from idiot import *
 from concurrent.futures import *

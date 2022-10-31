@@ -1,4 +1,3 @@
-import time
 import random
 from math import inf
 from numba import jit
@@ -44,7 +43,8 @@ def cmp(t1: tuple, t2: tuple):
 
 class AI(object):
 
-    def __init__(self, chessboard_size, color, time_out):
+    def __init__(self, chessboard_size, color, time_out, data):
+        self.data = data
         self.chessboard_size = chessboard_size
         self.color = color
         self.time_out = time_out
@@ -60,14 +60,33 @@ class AI(object):
         self.where = np.where
         self.sum = np.sum
         self.inf = inf
-        self.weighted_map = np.array([[-500, 25, -10, -5, -5, -10, 25, -500],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-5, -1, -2, -1, -1, -2, -1, -5],
-                                      [-10, -1, -3, -2, -2, -3, -1, -10],
-                                      [25, 45, -1, -1, -1, -1, 45, 25],
-                                      [-500, 25, -10, -5, -5, -10, 25, -500]])
+        self.weighted_map0 = np.array([[data[0], data[1], data[2], data[5], data[5], data[2], data[1], data[0]],
+                                       [data[1], data[3], data[4], data[9], data[9], data[4], data[3], data[1]],
+                                       [data[2], data[4], data[6], data[7], data[7], data[6], data[4], data[2]],
+                                       [data[5], data[9], data[7], data[8], data[8], data[7], data[9], data[5]],
+                                       [data[5], data[9], data[7], data[8], data[8], data[7], data[9], data[5]],
+                                       [data[2], data[4], data[6], data[7], data[7], data[6], data[4], data[2]],
+                                       [data[1], data[3], data[4], data[9], data[9], data[4], data[3], data[1]],
+                                       [data[0], data[1], data[2], data[5], data[5], data[2], data[1], data[0]]]
+                                      )
+        self.weighted_map1 = np.array([[data[10], data[11], data[12], data[15], data[15], data[12], data[11], data[10]],
+                                       [data[11], data[13], data[14], data[19], data[19], data[14], data[13], data[11]],
+                                       [data[12], data[14], data[16], data[17], data[17], data[16], data[14], data[12]],
+                                       [data[15], data[19], data[17], data[18], data[18], data[17], data[19], data[15]],
+                                       [data[15], data[19], data[17], data[18], data[18], data[17], data[19], data[15]],
+                                       [data[12], data[14], data[16], data[17], data[17], data[16], data[14], data[12]],
+                                       [data[11], data[13], data[14], data[19], data[19], data[14], data[13], data[11]],
+                                       [data[10], data[11], data[12], data[15], data[15], data[12], data[11], data[10]]]
+                                      )
+        self.weighted_map2 = np.array([[data[20], data[21], data[22], data[25], data[25], data[22], data[21], data[20]],
+                                       [data[21], data[23], data[24], data[29], data[29], data[24], data[23], data[21]],
+                                       [data[22], data[24], data[26], data[27], data[27], data[26], data[24], data[22]],
+                                       [data[25], data[29], data[27], data[28], data[28], data[27], data[29], data[25]],
+                                       [data[25], data[29], data[27], data[28], data[28], data[27], data[29], data[25]],
+                                       [data[22], data[24], data[26], data[27], data[27], data[26], data[24], data[22]],
+                                       [data[21], data[23], data[24], data[29], data[29], data[24], data[23], data[21]],
+                                       [data[20], data[21], data[22], data[25], data[25], data[22], data[21], data[20]]]
+                                      )
 
     def go(self, chessboard):
         self.candidate_list.clear()
@@ -78,35 +97,38 @@ class AI(object):
             return self.candidate_list
         self.candidate_list.append(random.choice(self.candidate_list))
         count = self.count_chess(chessboard)
-        if count < 50:
+        if count < 48:
             self.search(chessboard, self.color, d=2)
         else:
-            self.search(chessboard, self.color, d=4)
+            self.search(chessboard, self.color, d=2)
         return self.candidate_list
 
     def search(self, chessboard, color, d=2):
-        flag = 0
-        last = 4.9
+        # flag = 0
+        # last = 4.88
+        # time_used = 0
         while 1:
-            if flag > 3:
-                break
-            s = time.time()
+            # s = time.time()
             pos = self.alpha_beta(chessboard, color, d)
             if pos is None:
                 break
-            if pos not in self.precedence[4]:
-                self.candidate_list.append(pos)
-            e = time.time()
-            usage = e - s
-            if 2 * usage < last:
-                last -= usage
-                last -= 0.1
-                d += 1
-                flag += 1
-            else:
-                break
+            self.candidate_list.pop()
+            self.candidate_list.append(pos)
+            break
+            # e = time.time()
+            # if flag > 0:
+            #     break
+            # usage = e - s
+            # time_used += usage
+            # if 2 * usage < last:
+            #     last -= usage
+            #     last -= 0.1
+            #     d += 1
+            #     flag += 1
+            # else:
+            #     break
 
-    def alpha_beta(self, chessboard, color, d=4):
+    def alpha_beta(self, chessboard, color, d=2):
         def max_value(board, current_color, alpha, beta, depth):
             state = self.get_state(board, current_color)
             if len(state) == 0:
@@ -156,62 +178,24 @@ class AI(object):
         return best_action
 
     def evaluate(self, chessboard):
-        def is_frontier(board, x, y):
-            for dx, dy in [(dx, dy) for dx in range(-1, 2) for dy in range(-1, 2) if dx != 0 or dy != 0]:
-                if self.judge(x + dx, y + dy) and board[x + dx][y + dy] != 0:
-                    return True
-            return False
-
-        def judge_stable(board, current_color, x, y, z):
-            direction_x = [-1, 1, 0, 0, -1, 1, 1, -1]
-            direction_y = [0, 0, -1, 1, -1, 1, -1, 1]
-            bound_x = x + direction_x[z]
-            bound_y = y + direction_y[z]
-            while self.judge(bound_x, bound_y) and board[bound_x][bound_y] == current_color:
-                bound_x += direction_x[z]
-                bound_y += direction_y[z]
-            if not self.judge(bound_x, bound_y) or \
-                    (self.judge(bound_x, bound_y) and board[bound_x][bound_y] == COLOR_NONE):
-                return True
-            return False
-
-        def calculate(board, current_color, x, y):
-            frontier = 0
-            stability = 0
-            if is_frontier(board, x, y):
-                frontier += 1
-            for z in [0, 2, 4, 6]:
-                flag1 = judge_stable(board, current_color, x, y, z)
-                flag2 = judge_stable(board, current_color, x, y, z + 1)
-                if flag1 and flag2:
-                    stability += 1
-            return frontier, stability
-
         def weighting(weighted_map):
             return np.sum(chessboard * weighted_map * self.color)
 
         cnt = self.count_chess(chessboard)
-        my_frontier = 0
-        my_stability = 0
-        op_frontier = 0
-        op_stability = 0
-        for i in range(8):
-            for j in range(8):
-                if chessboard[i][j] == self.color:
-                    result = calculate(chessboard, self.color, i, j)
-                    my_frontier += result[0]
-                    my_stability += result[1]
-                elif chessboard[i][j] == -self.color:
-                    result = calculate(chessboard, -self.color, i, j)
-                    op_frontier += result[0]
-                    op_stability += result[1]
-        if cnt < 30:
-            return weighting(weighted_map=self.weighted_map)
-        elif cnt < 45:
-            return weighting(weighted_map=self.weighted_map) + 6 * (my_frontier - op_frontier) + \
-                   8 * (op_stability - my_stability)
-        elif cnt < 58:
-            return weighting(weighted_map=self.weighted_map) + 16 * (op_stability - my_stability)
+        my_num = np.sum(chessboard == self.color)
+        op_num = np.sum(chessboard == -self.color)
+        if my_num == 0:
+            return 50000
+        if op_num == 0:
+            return -50000
+        if cnt < 20:
+            return weighting(weighted_map=self.weighted_map0)
+        elif cnt < 36:
+            return (op_num - my_num) * self.data[30] * self.data[30] + weighting(weighted_map=self.weighted_map1) * (
+                        1 - self.data[32])
+        elif cnt < 50:
+            return (op_num - my_num) * self.data[31] * self.data[31] + weighting(weighted_map=self.weighted_map1) * (
+                        1 - self.data[33])
         else:
             return self.calculate_score(chessboard, self.color)
 
