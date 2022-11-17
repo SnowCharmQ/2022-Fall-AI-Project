@@ -1,4 +1,4 @@
-from ai import *
+from main import *
 
 BLACK_PIECE = "⚫"
 WHITE_PIECE = "○"
