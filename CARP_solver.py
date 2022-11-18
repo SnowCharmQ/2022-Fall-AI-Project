@@ -79,6 +79,7 @@ while len(free) > 0:
             break
         route.append(arc)
         free.remove(arc)
+        free.remove((arc[1], arc[0]))
         load += demands[arc[0]][arc[1]]
         cost += (distances[arc[0]][arc[1]] + graph[arc[0]][arc[1]])
         i = arc[1]
@@ -87,6 +88,17 @@ while len(free) > 0:
     total_load += load
     routes.append(route)
 
-print(routes)
-print(total_cost)
-print(total_load)
+print("s ", end="")
+for i in range(len(routes)):
+    route = routes[i]
+    print(0, end="")
+    print(",", end="")
+    for arc in route:
+        print(str(arc).replace(' ', ''), end="")
+        print(",", end="")
+    print(0, end="")
+    if i != len(routes) - 1:
+        print(",", end="")
+    else:
+        print()
+print("q %d" % total_cost)
