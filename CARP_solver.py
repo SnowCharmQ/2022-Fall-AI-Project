@@ -89,6 +89,7 @@ class RuleThread(threading.Thread):
         self.routes = []
         self.total_cost = 0
         self.total_load = 0
+        self.protocol = rule
         if rule == 'rule1':
             self.rule = rule1
         elif rule == 'rule2':
@@ -100,6 +101,7 @@ class RuleThread(threading.Thread):
         else:
             self.rule = rule5
 
+    def run(self):
         k = 0
         while len(self.free) > 0:
             route = []
@@ -109,27 +111,27 @@ class RuleThread(threading.Thread):
             while True:
                 arc = None
                 dis = np.inf
-                if rule == 'rule5' and cost < capacity / 2:
-                    dis = 0
-                elif rule == 'rule5':
+                if self.protocol == 'rule5' and cost < capacity / 2:
+                    dis = -1
+                elif self.protocol == 'rule5':
                     dis = np.inf
-                elif rule == 'rule1' or rule == 'rule3':
-                    dis = 0
-                elif rule == 'rule2' or rule == 'rule4':
+                elif self.protocol == 'rule1' or self.protocol == 'rule3':
+                    dis = -1
+                elif self.protocol == 'rule2' or self.protocol == 'rule4':
                     dis = np.inf
                 for u in self.free:
                     if load + demands[u[0]][u[1]] <= capacity:
                         if self.rule(dis, u, i, cost):
-                            if rule == 'rule1' or rule == 'rule2' or rule == 'rule5':
+                            if self.protocol == 'rule1' or self.protocol == 'rule2' or self.protocol == 'rule5':
                                 dis = distances[i][u[0]]
                             else:
-                                dis = demands[arc[0]][arc[1]] / graph[arc[0]][arc[1]]
+                                dis = demands[u[0]][u[1]] / graph[u[0]][u[1]]
                             arc = u
-                if dis == np.inf:
+                if dis == -1 or dis == np.inf:
                     break
                 route.append(arc)
-                free.remove(arc)
-                free.remove((arc[1], arc[0]))
+                self.free.remove(arc)
+                self.free.remove((arc[1], arc[0]))
                 load += demands[arc[0]][arc[1]]
                 cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
                 i = arc[1]
@@ -139,12 +141,6 @@ class RuleThread(threading.Thread):
             self.total_cost += cost
             self.total_load += load
             self.routes.append(route)
-
-
-k = 0
-depot = int(params['DEPOT'])
-capacity = int(params['CAPACITY'])
-free = copy.deepcopy(edges)
 
 
 def print_info(routes, total_cost):
@@ -162,3 +158,33 @@ def print_info(routes, total_cost):
         else:
             print()
     print("q %d" % total_cost)
+
+
+k = 0
+depot = int(params['DEPOT'])
+capacity = int(params['CAPACITY'])
+
+thread_list = []
+t1 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule1")
+t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
+t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
+t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
+t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
+thread_list.append(t1)
+thread_list.append(t2)
+thread_list.append(t3)
+thread_list.append(t4)
+thread_list.append(t5)
+
+final_cost = np.inf
+final_routes = []
+for t in thread_list:
+    t.start()
+    t.join()
+for t in thread_list:
+    if t.total_cost < final_cost:
+        final_cost = t.total_cost
+        final_routes = t.routes
+
+print_info(final_routes, final_cost)
+print(time.time() - start_time)
