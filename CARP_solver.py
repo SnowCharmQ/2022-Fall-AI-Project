@@ -48,7 +48,7 @@ for i in range(len(lines)):
     elif i == 8:
         num_edge = int(params['REQUIRED EDGES']) + int(params['NON-REQUIRED EDGES'])
         num_node = int(params['VERTICES'])
-        distances = [[-1] * num_node for _ in range(num_node)]
+        distances = [[np.inf] * (num_node + 1) for _ in range(num_node + 1)]
     elif 9 <= i <= 8 + num_edge:
         nums = line.split()
         num1, num2, cost, demand = int(nums[0]), int(nums[1]), int(nums[2]), int(nums[3])
@@ -56,3 +56,13 @@ for i in range(len(lines)):
         distances[num1][num2], distances[num2][num1] = cost, cost
     else:
         break
+
+for n in range(1, num_node + 1):
+    distances[n][n] = 0
+for k in range(1, num_node + 1):
+    for i in range(1, num_node + 1):
+        for j in range(1, num_node + 1):
+            temp = distances[i][k] + distances[k][j]
+            if temp < distances[i][j]:
+                distances[i][j] = temp
+
