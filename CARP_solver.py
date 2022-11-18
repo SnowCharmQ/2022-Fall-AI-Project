@@ -73,6 +73,13 @@ def rule4(dis, arc, depot, cap):
     return demands[arc[0]][arc[1]] / graph[arc[0]][arc[1]] < dis
 
 
+def rule5(dis, arc, depot, cap):
+    if cap < capacity / 2:
+        return rule1(dis, arc, depot, cap)
+    else:
+        return rule2(dis, arc, depot, cap)
+
+
 class RuleThread(threading.Thread):
     def __init__(self, free, depot, capacity, rule: str):
         super().__init__()
@@ -90,6 +97,8 @@ class RuleThread(threading.Thread):
             self.rule = rule3
         elif rule == 'rule4':
             self.rule = rule4
+        else:
+            self.rule = rule5
 
         k = 0
         while len(self.free) > 0:
@@ -100,10 +109,21 @@ class RuleThread(threading.Thread):
             while True:
                 arc = None
                 dis = np.inf
+                if rule == 'rule5' and cost < capacity / 2:
+                    dis = 0
+                elif rule == 'rule5':
+                    dis = np.inf
+                elif rule == 'rule1' or rule == 'rule3':
+                    dis = 0
+                elif rule == 'rule2' or rule == 'rule4':
+                    dis = np.inf
                 for u in self.free:
                     if load + demands[u[0]][u[1]] <= capacity:
                         if self.rule(dis, u, i, cost):
-                            dis = distances[i][u[0]]
+                            if rule == 'rule1' or rule == 'rule2' or rule == 'rule5':
+                                dis = distances[i][u[0]]
+                            else:
+                                dis = demands[arc[0]][arc[1]] / graph[arc[0]][arc[1]]
                             arc = u
                 if dis == np.inf:
                     break
@@ -111,8 +131,10 @@ class RuleThread(threading.Thread):
                 free.remove(arc)
                 free.remove((arc[1], arc[0]))
                 load += demands[arc[0]][arc[1]]
-                cost += (distances[arc[0]][arc[1]] + graph[arc[0]][arc[1]])
+                cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
                 i = arc[1]
+                if i == self.depot:
+                    break
             cost += distances[i][depot]
             self.total_cost += cost
             self.total_load += load
