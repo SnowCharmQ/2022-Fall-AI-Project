@@ -1,25 +1,9 @@
+import copy
 import time
 import math
 import random
 import argparse
 import numpy as np
-
-
-class Edge:
-    def __init__(self, n1, n2, c, d):
-        self.num1 = n1
-        self.num2 = n2
-        self.cost = c
-        self.demand = d
-        self.max_dis = np.inf
-        self.min_dis = -np.inf
-
-
-def get_hash(n1: int, n2: int):
-    if n1 > n2:
-        n1, n2 = n2, n1
-    return hash(str(n1) + " " + str(n2))
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("file_path", help="the absolute path of the test CARP instance file")
@@ -31,11 +15,11 @@ args = parser.parse_args()
 file_path = args.file_path
 t = args.t
 s = args.s
+random.seed(s)
 
 params = dict()
 num_node, num_edge = 0, 0
-edges = {}
-distances = [[]]
+edges, graph, distances, demands = set(), [[]], [[]], [[]]
 
 with open(file_path, 'r') as f:
     lines = f.readlines()
@@ -48,12 +32,17 @@ for i in range(len(lines)):
     elif i == 8:
         num_edge = int(params['REQUIRED EDGES']) + int(params['NON-REQUIRED EDGES'])
         num_node = int(params['VERTICES'])
+        graph = [[np.inf] * (num_node + 1) for _ in range(num_node + 1)]
         distances = [[np.inf] * (num_node + 1) for _ in range(num_node + 1)]
+        demands = [[0] * (num_node + 1) for _ in range(num_node + 1)]
     elif 9 <= i <= 8 + num_edge:
         nums = line.split()
         num1, num2, cost, demand = int(nums[0]), int(nums[1]), int(nums[2]), int(nums[3])
-        edges[get_hash(num1, num2)] = Edge(num1, num2, cost, demand)
+        edges.add((num1, num2))
+        edges.add((num2, num1))
+        graph[num1][num2], graph[num2][num1] = cost, cost
         distances[num1][num2], distances[num2][num1] = cost, cost
+        demands[num1][num2], demands[num2][num1] = demand, demand
     else:
         break
 
@@ -66,3 +55,38 @@ for k in range(1, num_node + 1):
             if temp < distances[i][j]:
                 distances[i][j] = temp
 
+k = 0
+depot = int(params['DEPOT'])
+capacity = int(params['CAPACITY'])
+free = copy.deepcopy(edges)
+total_cost, total_load = 0, 0
+routes = []
+
+while len(free) > 0:
+    route = []
+    k += 1
+    load, cost = 0, 0
+    i = depot
+    while True:
+        arc = None
+        dis = np.inf
+        for u in free:
+            if load + demands[u[0]][u[1]] <= capacity:
+                if distances[i][u[0]] < dis:
+                    dis = distances[i][u[0]]
+                    arc = u
+        if dis == np.inf:
+            break
+        route.append(arc)
+        free.remove(arc)
+        load += demands[arc[0]][arc[1]]
+        cost += (distances[arc[0]][arc[1]] + graph[arc[0]][arc[1]])
+        i = arc[1]
+    cost += distances[i][depot]
+    total_cost += cost
+    total_load += load
+    routes.append(route)
+
+print(routes)
+print(total_cost)
+print(total_load)
