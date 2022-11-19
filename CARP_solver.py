@@ -1,4 +1,5 @@
 import copy
+import math
 import time
 import random
 import argparse
@@ -18,9 +19,9 @@ parser.add_argument("-s", help="random seed", type=int)
 args = parser.parse_args()
 
 file_path = args.file_path
-t = args.t
-s = args.s
-random.seed(s)
+termination = args.t
+seed = args.s
+random.seed(seed)
 
 with open(file_path, 'r') as f:
     lines = f.readlines()
@@ -80,6 +81,38 @@ def rule5(dis, arc, depot, cap):
         return rule2(dis, arc, depot, cap)
 
 
+def probability(new_val, old_val, T):
+    if new_val < old_val:
+        return 1
+    return math.exp((old_val - new_val) / T)
+
+
+def flip(routes, costs, depot, T, best_routes, best_costs):
+    for route in routes:
+        if len(route) == 1:
+            continue
+        for i in range(len(route)):
+            if random.random() < 0.5:
+                if i == 0:
+                    temp = costs[i] - distances[depot][route[i][0]] - distances[route[i][1]][route[i + 1][0]] + \
+                           distances[depot][route[i][1]] + distances[route[i][0]][route[i + 1][0]]
+                elif i == len(route) - 1:
+                    temp = costs[i] - distances[route[i - 1][1]][route[i][0]] - distances[route[i][1]][depot] + \
+                           distances[route[i - 1][1]][route[i][1]] + distances[route[i][0]][depot]
+                else:
+                    temp = costs[i] - distances[route[i - 1][1]][route[i][0]] - distances[route[i][1]][
+                        route[i + 1][0]] + \
+                           distances[route[i - 1][1]][route[i][1]] + distances[route[i][0]][route[i + 1][0]]
+                if probability(temp, costs[i], T) > random.random():
+                    costs[i] = temp
+                    route[i] = (route[i][1], route[i][0])
+                    current_cost = sum(costs)
+                    if current_cost < sum(best_costs):
+                        best_costs = copy.deepcopy(costs)
+                        best_routes = copy.deepcopy(routes)
+    return routes, costs, best_routes, best_costs
+
+
 class RuleThread(threading.Thread):
     def __init__(self, free, depot, capacity, rule: str):
         super().__init__()
@@ -87,6 +120,7 @@ class RuleThread(threading.Thread):
         self.depot = depot
         self.capacity = capacity
         self.routes = []
+        self.costs = []
         self.total_cost = 0
         self.total_load = 0
         self.protocol = rule
@@ -140,7 +174,33 @@ class RuleThread(threading.Thread):
             cost += distances[i][depot]
             self.total_cost += cost
             self.total_load += load
+            self.costs.append(cost)
             self.routes.append(route)
+        T = 10000
+        alpha = 0.99
+        routes = copy.deepcopy(self.routes)
+        costs = copy.deepcopy(self.costs)
+        weight = [0.2, 0.4, 0.6, 0.8, 1]
+        repeat = 0
+        last_routes = routes
+        while time.time() - start_time <= termination - 2:
+            random_num = random.random()
+            if random_num < weight[0]:
+                routes, costs, self.routes, self.costs = flip(routes, costs, self.depot, T, self.routes, self.costs)
+            if routes == last_routes:
+                repeat += 1
+            if sum(costs) > 1.2 * sum(self.costs):
+                T = 10000
+                routes = copy.deepcopy(self.routes)
+                costs = copy.deepcopy(self.costs)
+                continue
+            if repeat > 100:
+                last_routes = routes
+                T = 10000
+                repeat = 0
+                continue
+            T *= alpha
+        self.total_cost = sum(self.costs)
 
 
 class RandomThread(threading.Thread):
@@ -222,6 +282,7 @@ final_cost = np.inf
 final_routes = []
 for t in thread_list:
     t.start()
+for t in thread_list:
     t.join()
 for t in thread_list:
     if t.total_cost < final_cost:
@@ -229,4 +290,3 @@ for t in thread_list:
         final_routes = t.routes
 
 print_info(final_routes, final_cost)
-print(time.time() - start_time)
