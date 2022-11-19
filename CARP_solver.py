@@ -88,23 +88,22 @@ def probability(new_val, old_val, T):
 
 
 def flip(routes, costs, route_demands, depot, best_routes, best_costs):
-    for route in routes:
-        if len(route) == 1:
-            continue
+    for l in range(len(routes)):
+        route = routes[l]
         for i in range(len(route)):
             if random.random() < 0.5:
                 if i == 0:
-                    temp = costs[i] - distances[depot][route[i][0]] - distances[route[i][1]][route[i + 1][0]] + \
-                           distances[depot][route[i][1]] + distances[route[i][0]][route[i + 1][0]]
-                elif i == len(route) - 1:
-                    temp = costs[i] - distances[route[i - 1][1]][route[i][0]] - distances[route[i][1]][depot] + \
-                           distances[route[i - 1][1]][route[i][1]] + distances[route[i][0]][depot]
+                    start = depot
                 else:
-                    temp = costs[i] - distances[route[i - 1][1]][route[i][0]] - distances[route[i][1]][
-                        route[i + 1][0]] + \
-                           distances[route[i - 1][1]][route[i][1]] + distances[route[i][0]][route[i + 1][0]]
-                costs[i] = temp
+                    start = route[i - 1][1]
+                if i == len(route) - 1:
+                    end = depot
+                else:
+                    end = route[i + 1][0]
+                costs[l] = costs[l] - distances[start][route[i][0]] - distances[route[i][1]][end] + \
+                    distances[start][route[i][1]] + distances[route[i][0]][end]
                 route[i] = (route[i][1], route[i][0])
+                routes[l] = route
                 current_cost = sum(costs)
                 if current_cost < sum(best_costs):
                     best_costs = copy.deepcopy(costs)
@@ -196,16 +195,14 @@ class RuleThread(threading.Thread):
             self.rule = rule5
 
     def run(self):
-        k = 0
         while self.free:
             route = []
-            k += 1
             load, cost = 0, 0
             i = self.depot
             while True:
                 arc = None
                 dis = np.inf
-                if self.protocol == 'rule5' and cost < capacity / 2:
+                if self.protocol == 'rule5' and load < capacity / 2:
                     dis = -1
                 elif self.protocol == 'rule5':
                     dis = np.inf
@@ -221,7 +218,7 @@ class RuleThread(threading.Thread):
                             else:
                                 dis = demands[u[0]][u[1]] / graph[u[0]][u[1]]
                             arc = u
-                if dis == -1 or dis == np.inf:
+                if dis == -1 or dis == np.inf or arc is None:
                     break
                 route.append(arc)
                 self.free.remove(arc)
@@ -286,7 +283,7 @@ class RandomThread(threading.Thread):
         self.total_cost = np.inf
         self.total_load = 0
 
-    def run(self) -> None:
+    def run(self):
         while time.time() - start_time <= termination - 2:
             free = copy.deepcopy(self.free)
             depot = self.depot
@@ -352,13 +349,13 @@ t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
 t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
 t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
 t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
-# t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
+t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
 thread_list.append(t1)
 thread_list.append(t2)
 thread_list.append(t3)
 thread_list.append(t4)
 thread_list.append(t5)
-# thread_list.append(t6)
+thread_list.append(t6)
 
 final_cost = np.inf
 final_routes = []
