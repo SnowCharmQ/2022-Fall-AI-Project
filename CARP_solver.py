@@ -101,7 +101,7 @@ def flip(routes, costs, route_demands, depot, best_routes, best_costs):
                 else:
                     end = route[i + 1][0]
                 costs[l] = costs[l] - distances[start][route[i][0]] - distances[route[i][1]][end] + \
-                    distances[start][route[i][1]] + distances[route[i][0]][end]
+                           distances[start][route[i][1]] + distances[route[i][0]][end]
                 route[i] = (route[i][1], route[i][0])
                 routes[l] = route
                 current_cost = sum(costs)
@@ -111,7 +111,57 @@ def flip(routes, costs, route_demands, depot, best_routes, best_costs):
     return routes, costs, route_demands, best_routes, best_costs
 
 
-def swap(routes, costs, route_demands, depot, best_routes, best_costs):
+def self_swap(routes, costs, route_demands, depot, best_routes, best_costs):
+    for l in range(len(routes)):
+        route = routes[l]
+        if len(route) == 1 or random.random() < 0.5:
+            continue
+        pos1 = 0
+        pos2 = 0
+        while pos1 == pos2:
+            pos1 = random.randint(0, len(route) - 1)
+            pos2 = random.randint(0, len(route) - 1)
+        if pos1 > pos2:
+            pos1, pos2 = pos2, pos1
+        seg1 = route[pos1]
+        seg2 = route[pos2]
+        if pos1 == 0:
+            start1 = depot
+        else:
+            start1 = route[pos1 - 1][1]
+        if pos2 == 0:
+            start2 = depot
+        else:
+            start2 = route[pos2 - 1][1]
+        if pos1 == len(route) - 1:
+            end1 = depot
+        else:
+            end1 = route[pos1 + 1][0]
+        if pos2 == len(route) - 1:
+            end2 = depot
+        else:
+            end2 = route[pos2 + 1][0]
+        route[pos1], route[pos2] = seg2, seg1
+        routes[l] = route
+        if pos2 - pos1 != 1:
+            temp = costs[l] - distances[start1][seg1[0]] - distances[seg1[1]][end1] - \
+                   distances[start2][seg2[0]] - distances[seg2[1]][end2]
+            temp += (distances[start1][seg2[0]] + distances[seg2[1]][end1] +
+                     distances[start2][seg1[0]] + distances[seg1[1]][end2])
+        else:
+            temp = costs[l] - distances[start1][seg1[0]] - distances[seg2[1]][end2] - \
+                   distances[seg1[1]][seg2[0]]
+            temp += (distances[start1][seg2[0]] + distances[seg1[1]][end2] +
+                     distances[seg2[1]][seg1[0]])
+        costs[l] = temp
+        current_cost = sum(costs)
+        if current_cost < sum(best_costs):
+            best_costs = copy.deepcopy(costs)
+            best_routes = copy.deepcopy(routes)
+    return routes, costs, route_demands, best_routes, best_costs
+
+
+def cross_swap(routes, costs, route_demands, depot, best_routes, best_costs):
     if len(routes) == 1:
         return routes, costs, route_demands, best_routes, best_costs
     num = 0
@@ -241,28 +291,34 @@ class RuleThread(threading.Thread):
         route_demands = copy.deepcopy(self.route_demands)
         repeat = 0
         last_routes = routes
+        last_cost = sum(costs)
+        weight = [0.3, 0.6, 1]
         while time.time() - start_time <= termination - 2:
             random_num = random.random()
-            if random_num < 0.5:
-                temp_routes, temp_costs, temp_route_demands, self.routes, self.costs = flip(routes, costs,
-                                                                                            route_demands,
-                                                                                            self.depot, self.routes,
-                                                                                            self.costs)
+            if random_num < weight[0]:
+                operation = flip
+            elif random_num < weight[1]:
+                operation = self_swap
             else:
-                temp_routes, temp_costs, temp_route_demands, self.routes, self.costs = swap(routes, costs,
-                                                                                            route_demands,
-                                                                                            self.depot, self.routes,
-                                                                                            self.costs)
+                operation = cross_swap
+            temp_routes, temp_costs, temp_route_demands, self.routes, self.costs = operation(routes, costs,
+                                                                                             route_demands,
+                                                                                             self.depot, self.routes,
+                                                                                             self.costs)
             if probability(sum(temp_costs), sum(costs), T) > random.random():
                 routes = temp_routes
                 costs = temp_costs
                 route_demands = temp_route_demands
-            if routes == last_routes:
+            if last_cost == sum(costs) or routes == last_routes:
                 repeat += 1
+            else:
+                last_cost = sum(costs)
+                last_routes = routes
             if sum(costs) > 1.2 * sum(self.costs):
                 T = 10000
                 routes = copy.deepcopy(self.routes)
                 costs = copy.deepcopy(self.costs)
+                last_routes = self.routes
                 continue
             if repeat > 100:
                 last_routes = routes
