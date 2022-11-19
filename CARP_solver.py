@@ -350,12 +350,14 @@ t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
 t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
 t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
 t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
+t7 = RandomThread(copy.deepcopy(edges), depot, capacity)
 thread_list.append(t1)
 thread_list.append(t2)
 thread_list.append(t3)
 thread_list.append(t4)
 thread_list.append(t5)
 thread_list.append(t6)
+thread_list.append(t7)
 
 final_cost = np.inf
 final_routes = []
