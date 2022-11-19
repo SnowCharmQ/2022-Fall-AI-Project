@@ -87,7 +87,7 @@ def probability(new_val, old_val, T):
     return math.exp((old_val - new_val) / T)
 
 
-def flip(routes, costs, depot, T, best_routes, best_costs):
+def flip(routes, costs, depot, best_routes, best_costs):
     for route in routes:
         if len(route) == 1:
             continue
@@ -103,13 +103,12 @@ def flip(routes, costs, depot, T, best_routes, best_costs):
                     temp = costs[i] - distances[route[i - 1][1]][route[i][0]] - distances[route[i][1]][
                         route[i + 1][0]] + \
                            distances[route[i - 1][1]][route[i][1]] + distances[route[i][0]][route[i + 1][0]]
-                if probability(temp, costs[i], T) > random.random():
-                    costs[i] = temp
-                    route[i] = (route[i][1], route[i][0])
-                    current_cost = sum(costs)
-                    if current_cost < sum(best_costs):
-                        best_costs = copy.deepcopy(costs)
-                        best_routes = copy.deepcopy(routes)
+                costs[i] = temp
+                route[i] = (route[i][1], route[i][0])
+                current_cost = sum(costs)
+                if current_cost < sum(best_costs):
+                    best_costs = copy.deepcopy(costs)
+                    best_routes = copy.deepcopy(routes)
     return routes, costs, best_routes, best_costs
 
 
@@ -121,6 +120,7 @@ class RuleThread(threading.Thread):
         self.capacity = capacity
         self.routes = []
         self.costs = []
+        self.demands = []
         self.total_cost = 0
         self.total_load = 0
         self.protocol = rule
@@ -174,6 +174,7 @@ class RuleThread(threading.Thread):
             cost += distances[i][depot]
             self.total_cost += cost
             self.total_load += load
+            self.demands.append(load)
             self.costs.append(cost)
             self.routes.append(route)
         T = 10000
@@ -186,7 +187,11 @@ class RuleThread(threading.Thread):
         while time.time() - start_time <= termination - 2:
             random_num = random.random()
             if random_num < weight[0]:
-                routes, costs, self.routes, self.costs = flip(routes, costs, self.depot, T, self.routes, self.costs)
+                temp_routes, temp_costs, self.routes, self.costs = flip(routes, costs, self.depot,
+                                                                        self.routes, self.costs)
+            if probability(sum(temp_costs), sum(costs), T) > random.random():
+                routes = temp_routes
+                costs = temp_costs
             if routes == last_routes:
                 repeat += 1
             if sum(costs) > 1.2 * sum(self.costs):
@@ -210,37 +215,46 @@ class RandomThread(threading.Thread):
         self.depot = depot
         self.capacity = capacity
         self.routes = []
-        self.total_cost = 0
+        self.total_cost = np.inf
         self.total_load = 0
 
     def run(self) -> None:
-        k = 0
-        while self.free:
-            random.shuffle(self.free)
-            route = []
-            k += 1
-            load, cost = 0, 0
-            i = self.depot
-            while True:
-                arc = None
-                for u in self.free:
-                    if load + demands[u[0]][u[1]] <= capacity:
-                        arc = u
+        while time.time() - start_time <= termination - 2:
+            free = copy.deepcopy(self.free)
+            depot = self.depot
+            total_cost = 0
+            total_load = 0
+            routes = []
+            k = 0
+            while free:
+                random.shuffle(free)
+                route = []
+                k += 1
+                load, cost = 0, 0
+                i = depot
+                while True:
+                    arc = None
+                    for u in free:
+                        if load + demands[u[0]][u[1]] <= capacity:
+                            arc = u
+                            break
+                    if arc is None:
                         break
-                if arc is None:
-                    break
-                route.append(arc)
-                self.free.remove(arc)
-                self.free.remove((arc[1], arc[0]))
-                load += demands[arc[0]][arc[1]]
-                cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
-                i = arc[1]
-                if i == self.depot:
-                    break
-            cost += distances[i][depot]
-            self.total_cost += cost
-            self.total_load += load
-            self.routes.append(route)
+                    route.append(arc)
+                    free.remove(arc)
+                    free.remove((arc[1], arc[0]))
+                    load += demands[arc[0]][arc[1]]
+                    cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
+                    i = arc[1]
+                    if i == depot:
+                        break
+                cost += distances[i][depot]
+                total_cost += cost
+                total_load += load
+                routes.append(route)
+            if total_cost < self.total_cost:
+                self.total_cost = total_cost
+                self.routes = routes
 
 
 def print_info(routes, total_cost):
