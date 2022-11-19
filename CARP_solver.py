@@ -87,7 +87,7 @@ def probability(new_val, old_val, T):
     return math.exp((old_val - new_val) / T)
 
 
-def flip(routes, costs, depot, best_routes, best_costs):
+def flip(routes, costs, route_demands, depot, best_routes, best_costs):
     for route in routes:
         if len(route) == 1:
             continue
@@ -109,7 +109,67 @@ def flip(routes, costs, depot, best_routes, best_costs):
                 if current_cost < sum(best_costs):
                     best_costs = copy.deepcopy(costs)
                     best_routes = copy.deepcopy(routes)
-    return routes, costs, best_routes, best_costs
+    return routes, costs, route_demands, best_routes, best_costs
+
+
+def swap(routes, costs, route_demands, depot, best_routes, best_costs):
+    if len(routes) == 1:
+        return routes, costs, route_demands, best_routes, best_costs
+    num = 0
+    while num < 5:
+        num += 1
+        r1 = 0
+        r2 = 0
+        while r1 == r2:
+            r1 = random.randint(0, len(routes) - 1)
+            r2 = random.randint(0, len(routes) - 1)
+        route1 = routes[r1]
+        route2 = routes[r2]
+        if len(route1) == 1 and len(route2) == 1:
+            continue
+        cnt = 0
+        while True:
+            cnt += 1
+            pos1 = random.randint(0, len(route1) - 1)
+            pos2 = random.randint(0, len(route2) - 1)
+            seg1 = route1[pos1]
+            seg2 = route2[pos2]
+            demand1, demand2 = route_demands[r1], route_demands[r2]
+            demand1 = demand1 - demands[seg1[0]][seg1[1]] + demands[seg2[0]][seg2[1]]
+            demand2 = demand2 - demands[seg2[0]][seg2[1]] + demands[seg1[0]][seg1[1]]
+            if cnt >= len(route1) + len(route2):
+                break
+            if demand1 <= capacity and demand2 <= capacity:
+                if pos1 == 0:
+                    start1 = depot
+                else:
+                    start1 = route1[pos1 - 1][1]
+                if pos1 == len(route1) - 1:
+                    end1 = depot
+                else:
+                    end1 = route1[pos1 + 1][0]
+                if pos2 == 0:
+                    start2 = depot
+                else:
+                    start2 = route2[pos2 - 1][1]
+                if pos2 == len(route2) - 1:
+                    end2 = depot
+                else:
+                    end2 = route2[pos2 + 1][0]
+                route1[pos1], route2[pos2] = seg2, seg1
+                route_demands[r1] = demand1
+                route_demands[r2] = demand2
+                costs[r1] = costs[r1] - distances[start1][seg1[0]] - distances[seg1[1]][end1] - \
+                            graph[seg1[0]][seg1[1]] + distances[start1][seg2[0]] + distances[seg2[1]][end1] + \
+                            graph[seg2[0]][seg2[1]]
+                costs[r2] = costs[r2] - distances[start2][seg2[0]] - distances[seg2[1]][end2] - \
+                            graph[seg2[0]][seg2[1]] + distances[start2][seg1[0]] + distances[seg1[1]][end2] + \
+                            graph[seg1[0]][seg1[1]]
+                current_cost = sum(costs)
+                if current_cost < sum(best_costs):
+                    best_costs = copy.deepcopy(costs)
+                    best_routes = copy.deepcopy(routes)
+    return routes, costs, route_demands, best_routes, best_costs
 
 
 class RuleThread(threading.Thread):
@@ -120,7 +180,7 @@ class RuleThread(threading.Thread):
         self.capacity = capacity
         self.routes = []
         self.costs = []
-        self.demands = []
+        self.route_demands = []
         self.total_cost = 0
         self.total_load = 0
         self.protocol = rule
@@ -174,24 +234,32 @@ class RuleThread(threading.Thread):
             cost += distances[i][depot]
             self.total_cost += cost
             self.total_load += load
-            self.demands.append(load)
+            self.route_demands.append(load)
             self.costs.append(cost)
             self.routes.append(route)
         T = 10000
         alpha = 0.99
         routes = copy.deepcopy(self.routes)
         costs = copy.deepcopy(self.costs)
-        weight = [0.2, 0.4, 0.6, 0.8, 1]
+        route_demands = copy.deepcopy(self.route_demands)
         repeat = 0
         last_routes = routes
         while time.time() - start_time <= termination - 2:
             random_num = random.random()
-            if random_num < weight[0]:
-                temp_routes, temp_costs, self.routes, self.costs = flip(routes, costs, self.depot,
-                                                                        self.routes, self.costs)
+            if random_num < 0.5:
+                temp_routes, temp_costs, temp_route_demands, self.routes, self.costs = flip(routes, costs,
+                                                                                            route_demands,
+                                                                                            self.depot, self.routes,
+                                                                                            self.costs)
+            else:
+                temp_routes, temp_costs, temp_route_demands, self.routes, self.costs = swap(routes, costs,
+                                                                                            route_demands,
+                                                                                            self.depot, self.routes,
+                                                                                            self.costs)
             if probability(sum(temp_costs), sum(costs), T) > random.random():
                 routes = temp_routes
                 costs = temp_costs
+                route_demands = temp_route_demands
             if routes == last_routes:
                 repeat += 1
             if sum(costs) > 1.2 * sum(self.costs):
@@ -284,13 +352,13 @@ t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
 t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
 t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
 t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
-t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
+# t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
 thread_list.append(t1)
 thread_list.append(t2)
 thread_list.append(t3)
 thread_list.append(t4)
 thread_list.append(t5)
-thread_list.append(t6)
+# thread_list.append(t6)
 
 final_cost = np.inf
 final_routes = []
