@@ -103,7 +103,7 @@ class RuleThread(threading.Thread):
 
     def run(self):
         k = 0
-        while len(self.free) > 0:
+        while self.free:
             route = []
             k += 1
             load, cost = 0, 0
@@ -128,6 +128,46 @@ class RuleThread(threading.Thread):
                                 dis = demands[u[0]][u[1]] / graph[u[0]][u[1]]
                             arc = u
                 if dis == -1 or dis == np.inf:
+                    break
+                route.append(arc)
+                self.free.remove(arc)
+                self.free.remove((arc[1], arc[0]))
+                load += demands[arc[0]][arc[1]]
+                cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
+                i = arc[1]
+                if i == self.depot:
+                    break
+            cost += distances[i][depot]
+            self.total_cost += cost
+            self.total_load += load
+            self.routes.append(route)
+
+
+class RandomThread(threading.Thread):
+    def __init__(self, free, depot, capacity):
+        super().__init__()
+        self.free = list(free)
+        self.depot = depot
+        self.capacity = capacity
+        self.routes = []
+        self.total_cost = 0
+        self.total_load = 0
+
+    def run(self) -> None:
+        k = 0
+        while self.free:
+            random.shuffle(self.free)
+            route = []
+            k += 1
+            load, cost = 0, 0
+            i = self.depot
+            while True:
+                arc = None
+                for u in self.free:
+                    if load + demands[u[0]][u[1]] <= capacity:
+                        arc = u
+                        break
+                if arc is None:
                     break
                 route.append(arc)
                 self.free.remove(arc)
@@ -170,11 +210,13 @@ t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
 t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
 t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
 t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
+t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
 thread_list.append(t1)
 thread_list.append(t2)
 thread_list.append(t3)
 thread_list.append(t4)
 thread_list.append(t5)
+thread_list.append(t6)
 
 final_cost = np.inf
 final_routes = []
