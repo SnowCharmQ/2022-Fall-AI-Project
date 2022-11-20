@@ -58,6 +58,21 @@ for k in range(1, num_node + 1):
                 distances[i][j] = temp
 
 
+def judge(flag=False):
+    if not flag:
+        weight = [0.3, 0.6, 1]
+        random_num = random.random()
+        if random_num < weight[0]:
+            operation = flip
+        elif random_num < weight[1]:
+            operation = self_swap
+        else:
+            operation = cross_swap
+        return operation
+    else:
+        return combination
+
+
 def rule1(dis, arc, depot, cap):
     return distances[depot][arc[0]] > dis
 
@@ -88,7 +103,6 @@ def probability(new_val, old_val, T):
 
 
 def flip(routes, costs, route_demands, depot, best_routes, best_costs, best_demands):
-    tmp = copy.deepcopy(routes)
     for l in range(len(routes)):
         route = routes[l]
         for i in range(len(route)):
@@ -110,19 +124,6 @@ def flip(routes, costs, route_demands, depot, best_routes, best_costs, best_dema
                     best_costs = copy.deepcopy(costs)
                     best_routes = copy.deepcopy(routes)
                     best_demands = copy.deepcopy(route_demands)
-    #
-    # for i in range(len(best_routes)):
-    #     route = best_routes[i]
-    #     dd = 0
-    #     for r in route:
-    #         dd += demands[r[0]][r[1]]
-    #     if best_demands[i] != dd:
-    #         for j in range(len(tmp)):
-    #             if tmp[j] != best_routes[j]:
-    #                 print(tmp[j])
-    #                 print(best_routes[j])
-    #         print(i, "flip")
-    #         print(best_demands[i], dd)
     return routes, costs, route_demands, best_routes, best_costs, best_demands
 
 
@@ -174,35 +175,14 @@ def self_swap(routes, costs, route_demands, depot, best_routes, best_costs, best
             best_costs = copy.deepcopy(costs)
             best_routes = copy.deepcopy(routes)
             best_demands = copy.deepcopy(route_demands)
-    #
-    # for i in range(len(best_routes)):
-    #     route = best_routes[i]
-    #     dd = 0
-    #     for r in route:
-    #         dd += demands[r[0]][r[1]]
-    #     if best_demands[i] != dd:
-    #         print(i, "self-swap")
-    #         print(best_demands[i], dd)
     return routes, costs, route_demands, best_routes, best_costs, best_demands
 
 
-def cross_swap(routes, costs, route_demands, depot, best_routes, best_costs, best_demands):
-    tmp = copy.deepcopy(best_demands)
-    best_demands = copy.deepcopy(best_demands)
+def cross_swap(routes, costs, route_demands, depot, best_routes, best_costs, best_demands, swap=5):
     if len(routes) == 1:
         return routes, costs, route_demands, best_routes, best_costs, best_demands
     num = 0
-    while num < 1:
-        # if best_routes != tmp:
-        #     print("changes")
-        #     for i in range(len(best_routes)):
-        #         route = best_routes[i]
-        #         dd = 0
-        #         for r in route:
-        #             dd += demands[r[0]][r[1]]
-        #         if route_demands[i] != dd:
-        #             print(i, "best")
-        #             print(route_demands[i], dd)
+    while num < swap:
         num += 1
         r1 = 0
         r2 = 0
@@ -224,20 +204,7 @@ def cross_swap(routes, costs, route_demands, depot, best_routes, best_costs, bes
             if cnt >= len(routes[r1]) + len(routes[r2]):
                 break
             if new_demand1 <= capacity and new_demand2 <= capacity:
-                # for i in range(len(routes)):
-                #     route = routes[i]
-                #     dd = 0
-                #     for r in route:
-                #         dd += demands[r[0]][r[1]]
-                #     if route_demands[i] != dd:
-                #         print(i, "i")
-                #         print(route_demands[i], dd)
                 routes[r1][pos1], routes[r2][pos2] = seg2, seg1
-                # d = 0
-                # for r in routes[r1]:
-                #     d += demands[r[0]][r1]
-                # if new_demand1 != d:
-                #     print("eeeeeeeeeee1")
                 route_demands[r1], route_demands[r2] = new_demand1, new_demand2
                 if pos1 == 0:
                     start1 = depot
@@ -266,38 +233,24 @@ def cross_swap(routes, costs, route_demands, depot, best_routes, best_costs, bes
                     best_costs = copy.deepcopy(costs)
                     best_routes = copy.deepcopy(routes)
                     best_demands = copy.deepcopy(route_demands)
-                    for i in range(len(best_routes)):
-                        route = best_routes[i]
-                        dd = 0
-                        for r in route:
-                            dd += demands[r[0]][r[1]]
-                        # if dd > capacity:
-                        if best_demands[i] != dd:
-                            print("flag")
-                            print(cnt)
-                            print(i)
-                            print(r1)
-                            print(r2)
-                            print(route_demands[i])
-                            print(dd)
-                            print(pos1)
-                            print(pos2)
-                            print(seg1)
-                            print(seg2)
-                            print(routes[r1])
-                            print(routes[r2])
-                            exit(0)
-                break
-    for i in range(len(best_routes)):
-        route = best_routes[i]
-        dd = 0
-        for r in route:
-            dd += demands[r[0]][r[1]]
-        if best_demands[i] != dd:
-            if best_demands != tmp:
-                print("alreadychange")
-            print(i, "finalbest")
-            print(best_demands[i], dd)
+    return routes, costs, route_demands, best_routes, best_costs, best_demands
+
+
+def combination(routes, costs, route_demands, depot, best_routes, best_costs, best_demands):
+    routes, costs, route_demands, best_routes, best_costs, best_demands = flip(routes, costs, route_demands, depot,
+                                                                               best_routes, best_costs, best_demands)
+    routes, costs, route_demands, best_routes, best_costs, best_demands = flip(routes, costs, route_demands, depot,
+                                                                               best_routes, best_costs, best_demands)
+    routes, costs, route_demands, best_routes, best_costs, best_demands = self_swap(routes, costs, route_demands, depot,
+                                                                                    best_routes, best_costs,
+                                                                                    best_demands)
+    routes, costs, route_demands, best_routes, best_costs, best_demands = self_swap(routes, costs, route_demands, depot,
+                                                                                    best_routes, best_costs,
+                                                                                    best_demands)
+    routes, costs, route_demands, best_routes, best_costs, best_demands = cross_swap(routes, costs,
+                                                                                     route_demands, depot,
+                                                                                     best_routes, best_costs,
+                                                                                     best_demands, 25)
     return routes, costs, route_demands, best_routes, best_costs, best_demands
 
 
@@ -356,8 +309,6 @@ class RuleThread(threading.Thread):
                 load += demands[arc[0]][arc[1]]
                 cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
                 i = arc[1]
-                if i == self.depot:
-                    break
             cost += distances[i][depot]
             self.total_cost += cost
             self.total_load += load
@@ -372,27 +323,11 @@ class RuleThread(threading.Thread):
         repeat = 0
         last_routes = copy.deepcopy(routes)
         last_cost = sum(costs)
-        weight = [0.3, 0.6, 1]
-        num = 0
+        flag = False
         while time.time() - start_time <= termination - 2:
-            num += 1
-            random_num = random.random()
-            if random_num < weight[0]:
-                operation = flip
-            elif random_num < weight[1]:
-                operation = self_swap
-            else:
-                operation = cross_swap
-            for i in range(len(routes)):
-                route = routes[i]
-                dd = 0
-                for r in route:
-                    dd += demands[r[0]][r[1]]
-                if route_demands[i] != dd:
-                    print(T)
-                    print("iter", num)
-                    print(i, "iiii")
-                    print(route_demands[i], dd)
+            operation = judge(flag)
+            if flag:
+                flag = not flag
             temp_routes, temp_costs, temp_route_demands, \
             best_routes, best_costs, best_route_demands = operation(routes, costs,
                                                                     route_demands,
@@ -403,15 +338,6 @@ class RuleThread(threading.Thread):
             self.routes = copy.deepcopy(best_routes)
             self.costs = copy.deepcopy(best_costs)
             self.route_demands = copy.deepcopy(best_route_demands)
-            for i in range(len(self.routes)):
-                route = self.routes[i]
-                dd = 0
-                for r in route:
-                    dd += demands[r[0]][r[1]]
-                if self.route_demands[i] != dd:
-                    print(operation)
-                    print(i, "self.routes")
-                    print(self.route_demands[i], dd)
             temp_routes, temp_costs, temp_route_demands = \
                 copy.deepcopy(temp_routes), copy.deepcopy(temp_costs), copy.deepcopy(temp_route_demands)
             if probability(sum(temp_costs), sum(costs), T) > random.random():
@@ -429,20 +355,13 @@ class RuleThread(threading.Thread):
                 costs = copy.deepcopy(self.costs)
                 route_demands = copy.deepcopy(self.route_demands)
                 last_routes = copy.deepcopy(self.routes)
-                for i in range(len(routes)):
-                    route = routes[i]
-                    dd = 0
-                    for r in route:
-                        dd += demands[r[0]][r[1]]
-                    if route_demands[i] != dd:
-                        print("epoch", num)
-                        print(i, "update")
-                        print(route_demands[i], dd)
+                flag = True
                 continue
             if repeat > 100:
                 last_routes = copy.deepcopy(routes)
                 T = 10000
                 repeat = 0
+                flag = True
                 continue
             T *= alpha
         self.total_cost = sum(self.costs)
@@ -520,19 +439,19 @@ capacity = int(params['CAPACITY'])
 
 thread_list = []
 t1 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule1")
-# t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
-# t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
-# t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
-# t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
-# t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
-# t7 = RandomThread(copy.deepcopy(edges), depot, capacity)
+t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
+t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
+t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
+t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
+t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
+t7 = RandomThread(copy.deepcopy(edges), depot, capacity)
 thread_list.append(t1)
-# thread_list.append(t2)
-# thread_list.append(t3)
-# thread_list.append(t4)
-# thread_list.append(t5)
-# thread_list.append(t6)
-# thread_list.append(t7)
+thread_list.append(t2)
+thread_list.append(t3)
+thread_list.append(t4)
+thread_list.append(t5)
+thread_list.append(t6)
+thread_list.append(t7)
 
 final_cost = np.inf
 final_routes = []
@@ -546,8 +465,3 @@ for t in thread_list:
         final_routes = t.routes
 
 print_info(final_routes, final_cost)
-for route in final_routes:
-    dd = 0
-    for r in route:
-        dd += demands[r[0]][r[1]]
-    print(dd)
