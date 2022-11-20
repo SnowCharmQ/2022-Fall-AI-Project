@@ -274,8 +274,10 @@ class RuleThread(threading.Thread):
             self.rule = rule3
         elif rule == 'rule4':
             self.rule = rule4
-        else:
+        elif rule == 'rule5':
             self.rule = rule5
+        else:
+            self.rule = None
 
     def run(self):
         while self.free:
@@ -293,14 +295,24 @@ class RuleThread(threading.Thread):
                     dis = -1
                 elif self.protocol == 'rule2' or self.protocol == 'rule4':
                     dis = np.inf
+                choice = []
                 for u in self.free:
                     if load + demands[u[0]][u[1]] <= capacity:
-                        if self.rule(dis, u, i, cost):
+                        if self.rule and self.rule(dis, u, i, cost):
                             if self.protocol == 'rule1' or self.protocol == 'rule2' or self.protocol == 'rule5':
                                 dis = distances[i][u[0]]
                             else:
                                 dis = demands[u[0]][u[1]] / graph[u[0]][u[1]]
                             arc = u
+                        elif not self.rule:
+                            if distances[i][u[0]] < dis:
+                                dis = distances[i][u[0]]
+                                choice.clear()
+                                choice.append(u)
+                            elif distances[i][u[0]] == dis:
+                                choice.append(u)
+                if len(choice) > 0:
+                    arc = random.choice(choice)
                 if dis == -1 or dis == np.inf or arc is None:
                     break
                 route.append(arc)
@@ -367,55 +379,6 @@ class RuleThread(threading.Thread):
         self.total_cost = sum(self.costs)
 
 
-class RandomThread(threading.Thread):
-    def __init__(self, free, depot, capacity):
-        super().__init__()
-        self.free = list(free)
-        self.depot = depot
-        self.capacity = capacity
-        self.routes = []
-        self.total_cost = np.inf
-        self.total_load = 0
-
-    def run(self):
-        while time.time() - start_time <= termination - 2:
-            free = copy.deepcopy(self.free)
-            depot = self.depot
-            total_cost = 0
-            total_load = 0
-            routes = []
-            k = 0
-            while free:
-                random.shuffle(free)
-                route = []
-                k += 1
-                load, cost = 0, 0
-                i = depot
-                while True:
-                    arc = None
-                    for u in free:
-                        if load + demands[u[0]][u[1]] <= capacity:
-                            arc = u
-                            break
-                    if arc is None:
-                        break
-                    route.append(arc)
-                    free.remove(arc)
-                    free.remove((arc[1], arc[0]))
-                    load += demands[arc[0]][arc[1]]
-                    cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
-                    i = arc[1]
-                    if i == depot:
-                        break
-                cost += distances[i][depot]
-                total_cost += cost
-                total_load += load
-                routes.append(route)
-            if total_cost < self.total_cost:
-                self.total_cost = total_cost
-                self.routes = routes
-
-
 def print_info(routes, total_cost):
     print("s ", end="")
     for i in range(len(routes)):
@@ -443,8 +406,8 @@ t2 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule2")
 t3 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule3")
 t4 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule4")
 t5 = RuleThread(copy.deepcopy(edges), depot, capacity, "rule5")
-t6 = RandomThread(copy.deepcopy(edges), depot, capacity)
-t7 = RandomThread(copy.deepcopy(edges), depot, capacity)
+t6 = RuleThread(copy.deepcopy(edges), depot, capacity, "random")
+t7 = RuleThread(copy.deepcopy(edges), depot, capacity, "random")
 thread_list.append(t1)
 thread_list.append(t2)
 thread_list.append(t3)
