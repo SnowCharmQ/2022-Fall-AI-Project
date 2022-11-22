@@ -294,7 +294,7 @@ class RuleThread(threading.Thread):
                     dis = -1
                 elif self.protocol == 'rule2' or self.protocol == 'rule4':
                     dis = np.inf
-                choice = []
+                choices = []
                 for u in self.free:
                     if load + demands[u[0]][u[1]] <= capacity:
                         if self.rule and self.rule(dis, u, i, cost):
@@ -306,12 +306,12 @@ class RuleThread(threading.Thread):
                         elif not self.rule:
                             if distances[i][u[0]] < dis:
                                 dis = distances[i][u[0]]
-                                choice.clear()
-                                choice.append(u)
+                                choices.clear()
+                                choices.append(u)
                             elif distances[i][u[0]] == dis:
-                                choice.append(u)
-                if len(choice) > 0:
-                    arc = random.choice(choice)
+                                choices.append(u)
+                if choices:
+                    arc = random.choice(choices)
                 if dis == -1 or dis == np.inf or arc is None:
                     break
                 route.append(arc)
@@ -431,17 +431,17 @@ class RandomThread(threading.Thread):
                 while True:
                     arc = None
                     dis = np.inf
-                    choice = []
+                    choices = []
                     for u in free:
                         if load + demands[u[0]][u[1]] <= capacity:
                             if distances[i][u[0]] < dis:
                                 dis = distances[i][u[0]]
-                                choice.clear()
-                                choice.append(u)
+                                choices.clear()
+                                choices.append(u)
                             elif distances[i][u[0]] == dis:
-                                choice.append(u)
-                    if len(choice) > 0:
-                        arc = random.choice(choice)
+                                choices.append(u)
+                    if choices:
+                        arc = random.choice(choices)
                     if dis == -1 or dis == np.inf or arc is None:
                         break
                     route.append(arc)
@@ -450,6 +450,8 @@ class RandomThread(threading.Thread):
                     load += demands[arc[0]][arc[1]]
                     cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
                     i = arc[1]
+                    if i == depot and random.random() < 0.5:
+                        break
                 cost += distances[i][depot]
                 total_cost += cost
                 costs.append(cost)
