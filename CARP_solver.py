@@ -328,6 +328,7 @@ class CARP(threading.Thread):
                 self.route_demands.append(load)
                 self.costs.append(cost)
                 self.routes.append(route)
+
         else:
             route = []
             cost = 0
@@ -365,11 +366,12 @@ class CARP(threading.Thread):
                     flag = False
                     i = arc[1]
             if route:
-                cost += distances[arc[1]][i]
+                cost += distances[arc[1]][self.depot]
                 self.total_cost += cost
                 self.costs.append(cost)
                 self.routes.append(route)
                 self.route_demands.append(load)
+
         T = 10000
         alpha = 0.99
         routes = copy.deepcopy(self.routes)
@@ -444,20 +446,20 @@ depot = int(params['DEPOT'])
 capacity = int(params['CAPACITY'])
 
 thread_list = []
+t1 = CARP(copy.deepcopy(free), depot, capacity, "init")
+t2 = CARP(copy.deepcopy(edges), depot, capacity, "init")
+thread_list.append(t1)
+thread_list.append(t2)
 for i in range(5):
     t = CARP(copy.deepcopy(free), depot, capacity, "rule" + str(i))
     thread_list.append(t)
     t = CARP(copy.deepcopy(edges), depot, capacity, "rule" + str(i))
     thread_list.append(t)
-for i in range(10):
+for i in range(5):
     t = CARP(copy.deepcopy(free), depot, capacity, "random")
     thread_list.append(t)
     t = CARP(copy.deepcopy(edges), depot, capacity, "random")
     thread_list.append(t)
-t1 = CARP(copy.deepcopy(free), depot, capacity, "init")
-t2 = CARP(copy.deepcopy(edges), depot, capacity, "init")
-thread_list.append(t1)
-thread_list.append(t2)
 
 final_cost = np.inf
 final_routes = []
