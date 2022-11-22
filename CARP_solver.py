@@ -256,7 +256,7 @@ def combination(routes, costs, route_demands, depot, best_routes, best_costs, be
     return routes, costs, route_demands, best_routes, best_costs, best_demands
 
 
-class CARP(threading.Thread):
+class CARPThread(threading.Thread):
     def __init__(self, free, depot, capacity, rule: str):
         super().__init__()
         self.free = free
@@ -424,6 +424,87 @@ class CARP(threading.Thread):
         self.total_cost = sum(self.costs)
 
 
+class RandomThread(threading.Thread):
+    def __init__(self, free, depot, capacity):
+        super().__init__()
+        self.free = free
+        self.depot = depot
+        self.capacity = capacity
+        self.routes = []
+        self.costs = []
+        self.total_cost = np.inf
+
+    def run(self):
+        free = copy.deepcopy(self.free)
+        total_cost = 0
+        costs = []
+        routes = []
+        while free:
+            route = []
+            load, cost = 0, 0
+            i = self.depot
+            while True:
+                arc = None
+                dis = np.inf
+                for u in free:
+                    if load + demands[u[0]][u[1]] <= capacity:
+                        if distances[i][u[0]] < dis:
+                            arc = u
+                            dis = distances[i][u[0]]
+                if dis == -1 or dis == np.inf or arc is None:
+                    break
+                route.append(arc)
+                free.remove(arc)
+                free.remove((arc[1], arc[0]))
+                load += demands[arc[0]][arc[1]]
+                cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
+                i = arc[1]
+            cost += distances[i][depot]
+            total_cost += cost
+            costs.append(cost)
+            routes.append(route)
+        self.total_cost = total_cost
+        self.routes = copy.deepcopy(routes)
+        while time.time() - start_time <= termination - 2:
+            free = copy.deepcopy(self.free)
+            total_cost = 0
+            costs = []
+            routes = []
+            while free:
+                route = []
+                load, cost = 0, 0
+                i = self.depot
+                while True:
+                    arc = None
+                    dis = np.inf
+                    choice = []
+                    for u in free:
+                        if load + demands[u[0]][u[1]] <= capacity:
+                            if distances[i][u[0]] < dis:
+                                dis = distances[i][u[0]]
+                                choice.clear()
+                                choice.append(u)
+                            elif distances[i][u[0]] == dis:
+                                choice.append(u)
+                    if len(choice) > 0:
+                        arc = random.choice(choice)
+                    if dis == -1 or dis == np.inf or arc is None:
+                        break
+                    route.append(arc)
+                    free.remove(arc)
+                    free.remove((arc[1], arc[0]))
+                    load += demands[arc[0]][arc[1]]
+                    cost += (distances[i][arc[0]] + graph[arc[0]][arc[1]])
+                    i = arc[1]
+                cost += distances[i][depot]
+                total_cost += cost
+                costs.append(cost)
+                routes.append(route)
+            if total_cost < self.total_cost:
+                self.total_cost = total_cost
+                self.routes = copy.deepcopy(routes)
+
+
 def print_info(routes, total_cost):
     print("s ", end="")
     for i in range(len(routes)):
@@ -446,19 +527,22 @@ depot = int(params['DEPOT'])
 capacity = int(params['CAPACITY'])
 
 thread_list = []
-t1 = CARP(copy.deepcopy(free), depot, capacity, "init")
-t2 = CARP(copy.deepcopy(edges), depot, capacity, "init")
+t1 = CARPThread(copy.deepcopy(free), depot, capacity, "init")
 thread_list.append(t1)
+for i in range(5):
+    t = CARPThread(copy.deepcopy(free), depot, capacity, "random")
+    thread_list.append(t)
+    t = CARPThread(copy.deepcopy(edges), depot, capacity, "random")
+    thread_list.append(t)
+for i in range(5):
+    t = CARPThread(copy.deepcopy(free), depot, capacity, "rule" + str(i))
+    thread_list.append(t)
+    t = CARPThread(copy.deepcopy(edges), depot, capacity, "rule" + str(i))
+    thread_list.append(t)
+t2 = CARPThread(copy.deepcopy(edges), depot, capacity, "init")
 thread_list.append(t2)
 for i in range(5):
-    t = CARP(copy.deepcopy(free), depot, capacity, "rule" + str(i))
-    thread_list.append(t)
-    t = CARP(copy.deepcopy(edges), depot, capacity, "rule" + str(i))
-    thread_list.append(t)
-for i in range(5):
-    t = CARP(copy.deepcopy(free), depot, capacity, "random")
-    thread_list.append(t)
-    t = CARP(copy.deepcopy(edges), depot, capacity, "random")
+    t = RandomThread(copy.deepcopy(edges), depot, capacity)
     thread_list.append(t)
 
 final_cost = np.inf
