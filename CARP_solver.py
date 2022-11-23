@@ -62,12 +62,14 @@ for k in range(1, num_node + 1):
 
 def judge(flag=False):
     if not flag:
-        weight = [0.3, 0.6, 1]
+        weight = [0.2, 0.4, 0.65, 1]
         random_num = random.random()
         if random_num < weight[0]:
             operation = flip
         elif random_num < weight[1]:
             operation = self_swap
+        elif random_num < weight[2]:
+            operation = self_two_opt
         else:
             operation = cross_swap
         return operation
@@ -180,6 +182,39 @@ def self_swap(routes, costs, route_demands, depot, best_routes, best_costs, best
     return routes, costs, route_demands, best_routes, best_costs, best_demands
 
 
+def self_two_opt(routes, costs, route_demands, depot, best_routes, best_costs, best_demands):
+    def calculate_cost(route):
+        cost = 0
+        point = depot
+        for i in range(len(route)):
+            arc = route[i]
+            cost += distances[point][arc[0]]
+            cost += graph[arc[0]][arc[1]]
+            point = arc[1]
+        cost += distances[point][depot]
+        return cost
+
+    for l in range(len(routes)):
+        route = routes[l]
+        route_copy = copy.deepcopy(route)
+        best_route = copy.deepcopy(route)
+        best_cost = calculate_cost(best_route)
+        for pos1 in range(len(route) - 1):
+            for pos2 in range(pos1 + 2, len(route)):
+                route_copy[pos1:pos2] = reversed(route_copy[pos1:pos2])
+                current_cost = calculate_cost(route_copy)
+                if current_cost < best_cost:
+                    best_cost = current_cost
+                    best_route = copy.deepcopy(route_copy)
+        routes[l] = copy.deepcopy(best_route)
+        costs[l] = best_cost
+    if sum(costs) < sum(best_costs):
+        best_costs = copy.deepcopy(costs)
+        best_routes = copy.deepcopy(routes)
+        best_demands = copy.deepcopy(route_demands)
+    return routes, costs, route_demands, best_routes, best_costs, best_demands
+
+
 def cross_swap(routes, costs, route_demands, depot, best_routes, best_costs, best_demands, swap=5):
     if len(routes) == 1:
         return routes, costs, route_demands, best_routes, best_costs, best_demands
@@ -243,16 +278,13 @@ def combination(routes, costs, route_demands, depot, best_routes, best_costs, be
                                                                                best_routes, best_costs, best_demands)
     routes, costs, route_demands, best_routes, best_costs, best_demands = flip(routes, costs, route_demands, depot,
                                                                                best_routes, best_costs, best_demands)
-    routes, costs, route_demands, best_routes, best_costs, best_demands = self_swap(routes, costs, route_demands, depot,
-                                                                                    best_routes, best_costs,
-                                                                                    best_demands)
-    routes, costs, route_demands, best_routes, best_costs, best_demands = self_swap(routes, costs, route_demands, depot,
-                                                                                    best_routes, best_costs,
-                                                                                    best_demands)
+    routes, costs, route_demands, best_routes, best_costs, best_demands = self_two_opt(routes, costs, route_demands,
+                                                                                       depot, best_routes, best_costs,
+                                                                                       best_demands)
     routes, costs, route_demands, best_routes, best_costs, best_demands = cross_swap(routes, costs,
                                                                                      route_demands, depot,
                                                                                      best_routes, best_costs,
-                                                                                     best_demands, 25)
+                                                                                     best_demands, 20)
     return routes, costs, route_demands, best_routes, best_costs, best_demands
 
 
@@ -406,7 +438,7 @@ class CARPThread(threading.Thread):
             else:
                 last_cost = sum(costs)
                 last_routes = copy.deepcopy(routes)
-            if sum(costs) > 1.2 * sum(self.costs):
+            if sum(costs) > 5 * sum(self.costs):
                 T = 10000
                 routes = copy.deepcopy(self.routes)
                 costs = copy.deepcopy(self.costs)
@@ -414,7 +446,7 @@ class CARPThread(threading.Thread):
                 last_routes = copy.deepcopy(self.routes)
                 flag = True
                 continue
-            if repeat > 100:
+            if repeat > 100 or T < 1e-30:
                 last_routes = copy.deepcopy(routes)
                 T = 10000
                 repeat = 0
@@ -541,7 +573,7 @@ for i in range(5):
     thread_list.append(t)
 t2 = CARPThread(copy.deepcopy(edges), depot, capacity, "init")
 thread_list.append(t2)
-for i in range(5):
+for i in range(3):
     t = RandomThread(copy.deepcopy(edges), depot, capacity)
     thread_list.append(t)
 
