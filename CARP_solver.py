@@ -62,7 +62,7 @@ for k in range(1, num_node + 1):
 
 def judge(flag=False):
     if not flag:
-        weight = [0.2, 0.4, 0.65, 1]
+        weight = [0.2, 0.4, 0.6, 1]
         random_num = random.random()
         if random_num < weight[0]:
             operation = flip
@@ -438,7 +438,7 @@ class CARPThread(threading.Thread):
             else:
                 last_cost = sum(costs)
                 last_routes = copy.deepcopy(routes)
-            if sum(costs) > 5 * sum(self.costs):
+            if sum(costs) > 2.5 * sum(self.costs):
                 T = 10000
                 routes = copy.deepcopy(self.routes)
                 costs = copy.deepcopy(self.costs)
