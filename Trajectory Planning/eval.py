@@ -16,8 +16,8 @@ if __name__ == "__main__":
     # But in the final evaluation we will use the test set.
 
     data = torch.load("data.pth")
-    label = data["label_train"]
-    feature = data["data_train"]
+    feature = data["feature"]
+    label = data["label"]
 
     scores = []
     for game in tqdm(range(N_EVALS)):
