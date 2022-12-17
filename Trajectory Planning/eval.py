@@ -10,7 +10,7 @@ if __name__ == "__main__":
     n_targets = 40
     agent = Agent()
 
-    # This is a example of what the evaluation procedure looks like.
+    # This is an example of what the evaluation procedure looks like.
     # The whole dataset is divided into a training set and a test set.
     # The training set (including `data` and `label`) is distributed to you.
     # But in the final evaluation we will use the test set.
