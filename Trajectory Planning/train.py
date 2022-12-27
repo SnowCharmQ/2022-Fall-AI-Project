@@ -62,7 +62,7 @@ for epoch in trange(epochs):
         torch.save(net.state_dict(), "model.pkl")
         print("Save the best model in epoch {}".format(epoch))
 
-model = Net(input_size, input_size * 2, input_size, output_size)
+model = Net(input_size, int(input_size * 1.5), int(input_size * 1.5), output_size)
 model.load_state_dict(torch.load("model.pkl"))
 test_output = model(test_data)
 test_pd = torch.max(test_output, 1)[1]
