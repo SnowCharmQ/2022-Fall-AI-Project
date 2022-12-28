@@ -1,34 +1,76 @@
+import time
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from typing import Tuple
-from src import FEATURE_DIM, RADIUS, splev, N_CTPS, P, evaluate
+from src import *
+
+input_size = 256
+output_size = 10
+
+
+class Net(nn.Module):
+    def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
+        super(Net, self).__init__()
+        self.hidden1 = nn.Linear(input_size, hidden_size1)
+        self.bn1 = nn.BatchNorm1d(hidden_size1)
+        self.hidden2 = nn.Linear(hidden_size1, hidden_size2)
+        self.bn2 = nn.BatchNorm1d(hidden_size2)
+        self.out = nn.Linear(hidden_size2, output_size)
+
+    def forward(self, x):
+        x = self.hidden1(x)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = self.hidden2(x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.out(x)
+        return x
 
 
 class Agent:
 
-    def __init__(self) -> None:
-        """Initialize the agent, e.g., load the classifier model. """
+    def __init__(self):
+        self.classifier = Net(input_size, int(input_size * 1.5), int(input_size * 1.5), output_size)
+        self.classifier.load_state_dict(torch.load("model.pkl"))
 
-        # TODO: prepare your agent here
+    def evaluate(self, traj: torch.Tensor,
+                 target_pos: torch.Tensor,
+                 target_scores: torch.Tensor,
+                 radius: float) -> torch.Tensor:
+        cdist = torch.cdist(target_pos, traj)
+        d = cdist.min(-1).values
+        hits = d <= radius
+        d[hits] = 1
+        d[~hits] = radius / d[~hits]
+        value = torch.sum(d * target_scores, dim=-1)
+        return value
 
     def get_action(self,
                    target_pos: torch.Tensor,
                    target_features: torch.Tensor,
-                   class_scores: torch.Tensor,
-                   ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute the parameters required to fire a projectile. 
-        
-        Args:
-            target_pos: x-y positions of shape `(N, 2)` where `N` is the number of targets. 
-            target_features: features of shape `(N, d)`.
-            class_scores: scores associated with each class of targets. `(K,)` where `K` is the number of classes.
-        Return: Tensor of shape `(N_CTPS-2, 2)`
-            the second to the second last control points
-        """
-        assert len(target_pos) == len(target_features)
+                   class_scores: torch.Tensor) -> torch.Tensor:
+        s = time.time()
+        target_class_pred = self.classifier(target_features)
+        target_class_pred = torch.max(target_class_pred, 1)[1]
+        target_class_pred = target_class_pred.data.numpy()
 
-        # TODO: compute the firing speed and angle that would give the best score.
-        # Example: return a random configuration
         ctps_inter = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
-
+        ctps_inter.requires_grad = True
+        best_score = -100
+        while not time.time() - s > 0.29:
+            temp = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
+            score = evaluate(compute_traj(temp), target_pos, class_scores[target_class_pred], RADIUS)
+            if score > best_score:
+                best_score = score
+                ctps_inter = temp
+        # lr = 1
+        # for it in range(10):
+        #     score = self.evaluate(compute_traj(ctps_inter), target_pos,
+        #                           class_scores[target_class_pred], RADIUS)
+        #     score.backward()
+        #     ctps_inter.data = ctps_inter.data + lr * ctps_inter.grad / torch.norm(ctps_inter.grad)
+        if best_score < 0:
+            ctps_inter = torch.Tensor([[-100, -100], [-100, -100], [-100, 100]])
         return ctps_inter
