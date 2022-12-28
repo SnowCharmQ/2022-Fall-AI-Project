@@ -29,7 +29,7 @@ class Net(nn.Module):
 data = torch.load('data.pth')
 feature = data['feature']
 label = data['label']
-X_train, test_data, y_train, test_label = train_test_split(feature, label, test_size=0.2, random_state=42)
+X_train, test_data, y_train, test_label = train_test_split(feature, label, test_size=0.1, random_state=42)
 
 input_size = int(feature.shape[1])
 output_size = int(torch.unique(label).shape[0])
