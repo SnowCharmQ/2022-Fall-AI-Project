@@ -1,11 +1,11 @@
 import os
+import copy
 import math
 import time
 import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple
 from src import *
 
 input_size = 256
@@ -101,10 +101,10 @@ class Agent:
             ctps_inter = temp
         e = time.time()
         usage = e - s
-        chances = math.floor((0.3 - init_time) / usage) - 1
+        chances = math.floor((0.3 - init_time * 2 - 0.02) / usage) - 1
         if chances > 0:
             for _ in range(chances):
-                temp, score = optimize(target_pos, class_scores, target_class_pred, 18, 0.25)
+                temp, score = optimize(target_pos, class_scores, target_class_pred, 20, 0.25)
                 if score > best_score:
                     best_score = score
                     ctps_inter = temp
@@ -112,16 +112,16 @@ class Agent:
             temp = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
             temp.requires_grad = True
             optimizer = torch.optim.Adam([temp], lr=0.1, betas=(0.5, 0.9))
-            while time.time() - start_time < 0.29:
+            while time.time() - start_time < 0.28:
                 loss = loss_fn(compute_traj(temp), target_pos,
                                class_scores[target_class_pred], RADIUS)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            score = real_score(compute_traj(temp), target_pos, class_scores[target_class_pred], RADIUS)
-            if score > best_score:
-                best_score = score
-                ctps_inter = temp
+                score = real_score(compute_traj(temp), target_pos, class_scores[target_class_pred], RADIUS)
+                if score > best_score:
+                    best_score = score
+                    ctps_inter = copy.deepcopy(temp)
         if best_score < 0:
             ctps_inter = torch.Tensor([[-100, -100], [-100, -100], [-100, 100]])
         return ctps_inter
