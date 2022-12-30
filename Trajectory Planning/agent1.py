@@ -69,7 +69,8 @@ class Agent1:
 
     def __init__(self):
         self.classifier = Net(input_size, int(input_size * 1.5), int(input_size * 1.5), output_size)
-        self.classifier.load_state_dict(torch.load("model.pkl"))
+        file_name = os.path.join(os.path.dirname(__file__), 'model.pkl')
+        self.classifier.load_state_dict(torch.load(file_name))
 
     def get_action(self,
                    target_pos: torch.Tensor,
