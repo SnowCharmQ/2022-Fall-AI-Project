@@ -10,6 +10,7 @@ from src import *
 
 input_size = 256
 output_size = 10
+CHOICES = 16
 
 
 class Net(nn.Module):
@@ -47,8 +48,8 @@ def loss_fn(sol: torch.Tensor,
             target_pos: torch.Tensor,
             target_scores: torch.Tensor,
             radius: float) -> torch.Tensor:
-    values = torch.zeros(10)
-    for i in range(10):
+    values = torch.zeros(CHOICES)
+    for i in range(CHOICES):
         temp = sol[i]
         traj = compute_traj(temp)
         cdist = torch.cdist(target_pos, traj)
@@ -81,18 +82,18 @@ class Agent1:
         ctps_inter = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
         best_score = real_score(compute_traj(ctps_inter), target_pos, class_scores[target_class_pred], RADIUS)
         ctps_inter.requires_grad = True
-        sol = torch.zeros((10, 3, 2))
-        for i in range(10):
+        sol = torch.zeros((CHOICES, 3, 2))
+        for i in range(CHOICES):
             temp = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
             sol[i] = temp
         sol.requires_grad = True
-        optimizer = torch.optim.Adam([sol], lr=0.2, betas=(0.5, 0.85))
+        optimizer = torch.optim.RMSprop([sol], lr=0.1)
         while time.time() - s < 0.25:
             loss = loss_fn(sol, target_pos, class_scores[target_class_pred], RADIUS)
             optimizer.zero_grad()
             loss.backward(torch.ones_like(loss))
             optimizer.step()
-        for i in range(10):
+        for i in range(CHOICES):
             score = real_score(compute_traj(sol[i]), target_pos, class_scores[target_class_pred], RADIUS)
             if score > best_score:
                 best_score = score
