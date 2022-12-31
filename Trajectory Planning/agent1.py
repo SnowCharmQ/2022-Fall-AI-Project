@@ -88,8 +88,8 @@ class Agent1:
             temp = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
             sol[i] = temp
         sol.requires_grad = True
-        optimizer = torch.optim.RMSprop([sol], lr=0.1)
-        while time.time() - s < 0.25:
+        optimizer = torch.optim.RMSprop([sol], lr=0.1, alpha=0.95)
+        while time.time() - s < 0.2:
             loss = loss_fn(sol, target_pos, class_scores[target_class_pred], RADIUS)
             optimizer.zero_grad()
             loss.backward(torch.ones_like(loss))
