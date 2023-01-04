@@ -10,6 +10,7 @@ from src import *
 
 input_size = 256
 output_size = 10
+CHOICES = 16
 
 
 class Net(nn.Module):
@@ -43,34 +44,25 @@ def real_score(traj: torch.Tensor,
     return value
 
 
-def loss_fn(traj: torch.Tensor,
+def loss_fn(sol: torch.Tensor,
             target_pos: torch.Tensor,
             target_scores: torch.Tensor,
             radius: float) -> torch.Tensor:
-    cdist = torch.cdist(target_pos, traj)
-    d = cdist.min(-1).values
-    hits = d <= radius
-    d[hits] = 1
-    d[~hits] = radius / d[~hits]
-    result = d * target_scores
-    result /= 10
-    value = torch.sum(result, dim=-1)
-    value = -value
-    return value
-
-
-def optimize(target_pos, class_scores, target_class_pred, epoch, lr):
-    temp = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
-    temp.requires_grad = True
-    optimizer = torch.optim.Adam([temp], lr=lr, betas=(0.5, 0.85))
-    for _ in range(epoch):
-        loss = loss_fn(compute_traj(temp), target_pos,
-                       class_scores[target_class_pred], RADIUS)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-    score = real_score(compute_traj(temp), target_pos, class_scores[target_class_pred], RADIUS)
-    return temp, score
+    values = torch.zeros(CHOICES)
+    for i in range(CHOICES):
+        temp = sol[i]
+        traj = compute_traj(temp)
+        cdist = torch.cdist(target_pos, traj)
+        d = cdist.min(-1).values
+        hits = d <= radius
+        d[hits] = 1
+        d[~hits] = radius / d[~hits]
+        result = d * target_scores
+        result /= 10
+        value = torch.sum(result, dim=-1)
+        value = -value
+        values[i] = value
+    return values
 
 
 class Agent:
@@ -84,7 +76,6 @@ class Agent:
                    target_pos: torch.Tensor,
                    target_features: torch.Tensor,
                    class_scores: torch.Tensor) -> torch.Tensor:
-        start_time = time.time()
         s = time.time()
         target_class_pred = self.classifier(target_features)
         target_class_pred = torch.max(target_class_pred, 1)[1]
@@ -92,37 +83,20 @@ class Agent:
         ctps_inter = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
         best_score = real_score(compute_traj(ctps_inter), target_pos, class_scores[target_class_pred], RADIUS)
         ctps_inter.requires_grad = True
-        e = time.time()
-        init_time = e - s
-
-        s = time.time()
-        temp, score = optimize(target_pos, class_scores, target_class_pred, 25, 0.2)
-        if score > best_score:
-            best_score = score
-            ctps_inter = temp
-        e = time.time()
-        usage = e - s
-        chances = math.floor((0.3 - init_time * 2 - 0.02) / usage) - 1
-        if chances > 0:
-            for _ in range(chances):
-                temp, score = optimize(target_pos, class_scores, target_class_pred, 20, 0.25)
-                if score > best_score:
-                    best_score = score
-                    ctps_inter = temp
-        else:
+        sol = torch.zeros((CHOICES, 3, 2))
+        for i in range(CHOICES):
             temp = torch.rand((N_CTPS - 2, 2)) * torch.tensor([N_CTPS - 2, 2.]) + torch.tensor([1., -1.])
-            temp.requires_grad = True
-            optimizer = torch.optim.Adam([temp], lr=0.1, betas=(0.5, 0.9))
-            while time.time() - start_time < 0.28:
-                loss = loss_fn(compute_traj(temp), target_pos,
-                               class_scores[target_class_pred], RADIUS)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                score = real_score(compute_traj(temp), target_pos, class_scores[target_class_pred], RADIUS)
-                if score > best_score:
-                    best_score = score
-                    ctps_inter = copy.deepcopy(temp)
-        if best_score < 0:
-            ctps_inter = torch.Tensor([[-100, -100], [-100, -100], [-100, 100]])
+            sol[i] = temp
+        sol.requires_grad = True
+        optimizer = torch.optim.RMSprop([sol], lr=0.1, alpha=0.95)
+        while time.time() - s < 0.2:
+            loss = loss_fn(sol, target_pos, class_scores[target_class_pred], RADIUS)
+            optimizer.zero_grad()
+            loss.backward(torch.ones_like(loss))
+            optimizer.step()
+        for i in range(CHOICES):
+            score = real_score(compute_traj(sol[i]), target_pos, class_scores[target_class_pred], RADIUS)
+            if score > best_score:
+                best_score = score
+                ctps_inter = sol[i]
         return ctps_inter
