@@ -118,15 +118,17 @@ def loss_fn(sol: torch.Tensor,
     return values
 
 
-def real_score(traj: torch.Tensor,
+def real_score(sol: torch.Tensor,
                target_pos: torch.Tensor,
                target_scores: torch.Tensor,
-               radius: float) -> torch.Tensor:
+               radius: float):
+    traj = compute_traj_new(sol)
     cdist = torch.cdist(target_pos, traj)
     d = cdist.min(-1).values
     hit = (d < radius)
-    value = torch.sum(hit * target_scores, dim=-1)
-    return value
+    values = torch.sum(hit * target_scores, dim=-1)
+    idx = torch.argmax(values)
+    return values.view(-1)[idx], sol[idx]
 
 
 class Net(nn.Module):
@@ -164,21 +166,18 @@ class Agent:
         target_class_pred = self.classifier(target_features)
         target_class_pred = torch.max(target_class_pred, 1)[1]
         target_class_pred = target_class_pred.data.numpy()
-        ctps_inter = torch.rand((P, 2)) * torch.tensor([P, 2.]) + torch.tensor([1., -1.])
-        best_score = real_score(compute_traj(ctps_inter), target_pos, class_scores[target_class_pred], RADIUS)
         sol = torch.rand((CHOICES, P, 2)) * torch.tensor([P, 2.]) + torch.tensor([1., -1.])
         sol.requires_grad = True
         optimizer = torch.optim.RMSprop([sol], lr=0.1, alpha=0.95)
         e = time.time()
-        while e - s < 0.27:
+        while e - s < 0.25:
             loss = loss_fn(sol, target_pos, class_scores[target_class_pred], RADIUS)
             optimizer.zero_grad()
             loss.backward(torch.ones_like(loss))
             optimizer.step()
             e = time.time()
-        for i in range(CHOICES):
-            score = real_score(compute_traj(sol[i]), target_pos, class_scores[target_class_pred], RADIUS)
-            if score > best_score:
-                best_score = score
-                ctps_inter = sol[i]
-        return ctps_inter
+        score, ctps = real_score(sol, target_pos, class_scores[target_class_pred], RADIUS)
+        if score > torch.tensor(0):
+            return ctps
+        else:
+            return torch.Tensor([[-100, -100], [-100, -100], [-100, 100]])
