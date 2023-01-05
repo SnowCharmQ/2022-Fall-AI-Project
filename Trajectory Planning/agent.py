@@ -6,11 +6,64 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from src import *
 
+P = 3
+N_CTPS = 5
+RADIUS = 0.3
+N_CLASSES = 10
+FEATURE_DIM = 256
 input_size = 256
 output_size = 10
 CHOICES = 16
+
+
+def splev(
+        x: torch.Tensor,
+        knots: torch.Tensor,
+        ctps: torch.Tensor,
+        degree: int,
+        der: int = 0
+) -> torch.Tensor:
+    if der == 0:
+        return _splev_torch_impl(x, knots, ctps, degree)
+    else:
+        assert der <= degree, "The order of derivative to compute must be less than or equal to k."
+        n = ctps.size(-2)
+        ctps = (ctps[..., 1:, :] - ctps[..., :-1, :]) / (knots[degree + 1:degree + n] - knots[1:n]).unsqueeze(-1)
+        return degree * splev(x, knots[..., 1:-1], ctps, degree - 1, der - 1)
+
+
+def _splev_torch_impl(x: torch.Tensor, t: torch.Tensor, c: torch.Tensor, k: int):
+    assert t.size(0) == c.size(0) + k + 1, f"{len(t)} != {len(c)} + {k} + {1}"  # m= n + k + 1
+
+    x = torch.atleast_1d(x)
+    assert x.dim() == 1 and t.dim() == 1 and c.dim() == 2, f"{x.shape}, {t.shape}, {c.shape}"
+    n = c.size(0)
+    u = (torch.searchsorted(t, x) - 1).clip(k, n - 1).unsqueeze(-1)
+    x = x.unsqueeze(-1)
+    d = c[u - k + torch.arange(k + 1, device=c.device)].contiguous()
+    for r in range(1, k + 1):
+        j = torch.arange(r - 1, k, device=c.device) + 1
+        t0 = t[j + u - k]
+        t1 = t[j + u + 1 - r]
+        alpha = ((x - t0) / (t1 - t0)).unsqueeze(-1)
+        d[:, j] = (1 - alpha) * d[:, j - 1] + alpha * d[:, j]
+    return d[:, k]
+
+
+def compute_traj(ctps_inter: torch.Tensor):
+    t = torch.linspace(0, N_CTPS - P, 100, device=ctps_inter.device)
+    knots = torch.cat([
+        torch.zeros(P, device=ctps_inter.device),
+        torch.arange(N_CTPS + 1 - P, device=ctps_inter.device),
+        torch.full((P,), N_CTPS - P, device=ctps_inter.device),
+    ])
+    ctps = torch.cat([
+        torch.tensor([[0., 0.]], device=ctps_inter.device),
+        ctps_inter,
+        torch.tensor([[N_CTPS, 0.]], device=ctps_inter.device)
+    ])
+    return splev(t, knots, ctps, P)
 
 
 class Net(nn.Module):
@@ -89,11 +142,13 @@ class Agent:
             sol[i] = temp
         sol.requires_grad = True
         optimizer = torch.optim.RMSprop([sol], lr=0.1, alpha=0.95)
-        while time.time() - s < 0.2:
+        e = time.time()
+        while e - s < 0.27:
             loss = loss_fn(sol, target_pos, class_scores[target_class_pred], RADIUS)
             optimizer.zero_grad()
             loss.backward(torch.ones_like(loss))
             optimizer.step()
+            e = time.time()
         for i in range(CHOICES):
             score = real_score(compute_traj(sol[i]), target_pos, class_scores[target_class_pred], RADIUS)
             if score > best_score:
